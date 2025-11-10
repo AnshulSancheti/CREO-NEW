@@ -17,7 +17,7 @@ interface ModuleCarouselProps {
 
 const DRAG_BUFFER = 0;
 const VELOCITY_THRESHOLD = 500;
-const GAP = 16;
+const GAP = 24;
 const SPRING_OPTIONS = { type: 'spring', stiffness: 300, damping: 30 };
 
 export default function ModuleCarousel({
@@ -26,8 +26,8 @@ export default function ModuleCarousel({
   autoplayInterval = 0,
   loop = true
 }: ModuleCarouselProps) {
-  const baseWidth = 320;
-  const containerPadding = 16;
+  const baseWidth = 900;
+  const containerPadding = 24;
   const itemWidth = baseWidth - containerPadding * 2;
   const trackItemOffset = itemWidth + GAP;
 
@@ -121,21 +121,26 @@ export default function ModuleCarousel({
       };
 
   return (
-    <div className={`${bodyFont.className} w-full`}>
-      <div className="mb-4">
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#fff5ef] to-[#f2e7d9] rounded-full border border-[#a95757]/20 shadow-sm">
-          <Zap className="w-4 h-4 text-[#a95757]" />
-          <span className="text-xs uppercase tracking-[0.2em] text-[#a95757] font-semibold">
-            Module Overview
+    <div className={`${bodyFont.className} w-full max-w-5xl mx-auto`}>
+      <div className="mb-6 flex items-center justify-between">
+        <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#fff5ef] to-[#f2e7d9] rounded-full border border-[#a95757]/20 shadow-sm">
+          <Zap className="w-5 h-5 text-[#a95757]" />
+          <span className="text-sm uppercase tracking-[0.2em] text-[#a95757] font-semibold">
+            Course Modules
           </span>
+        </div>
+        <div className="text-sm text-[#666]">
+          {modules.length} {modules.length === 1 ? 'Module' : 'Modules'}
         </div>
       </div>
 
       <div
         ref={containerRef}
-        className="relative overflow-hidden rounded-3xl border border-[#f2e7d9] shadow-lg"
+        className="relative overflow-hidden rounded-3xl border border-[#f2e7d9] shadow-2xl bg-gradient-to-br from-white to-[#fffcf9]"
         style={{
-          width: `${baseWidth}px`,
+          width: '100%',
+          maxWidth: `${baseWidth}px`,
+          margin: '0 auto',
           padding: `${containerPadding}px`
         }}
       >
@@ -171,66 +176,71 @@ export default function ModuleCarousel({
             return (
               <motion.div
                 key={`${module.id}-${index}`}
-                className="relative flex flex-shrink-0 flex-col justify-between bg-gradient-to-br from-white to-[#fffcf9] border border-[#f2e7d9] rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow"
+                className="relative flex flex-shrink-0 flex-col justify-between bg-gradient-to-br from-white to-[#fffcf9] border-2 border-[#f2e7d9] rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:border-[#a95757]/40"
                 style={{
                   width: itemWidth,
-                  minHeight: '280px',
+                  minHeight: '420px',
                   rotateY: rotateY
                 }}
                 transition={effectiveTransition}
                 onClick={() => handleModuleClick(module.id, actualIndex)}
               >
                 {/* Header */}
-                <div className="p-6 pb-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-[#fff5ef] to-[#f2e7d9] border border-[#a95757]/20 shadow-sm">
+                <div className="p-8 pb-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#fff5ef] to-[#f2e7d9] border-2 border-[#a95757]/30 shadow-md">
                       {getModuleIcon(actualIndex, modules.length)}
                     </div>
-                    <div className="text-xs font-bold text-[#a95757] bg-[#fff5ef] px-3 py-1 rounded-full border border-[#a95757]/20">
+                    <div className="text-sm font-bold text-[#a95757] bg-[#fff5ef] px-4 py-2 rounded-full border border-[#a95757]/20 shadow-sm">
                       Module {actualIndex + 1}
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold text-[#262626] mb-2 line-clamp-2">
+                  <h3 className="text-2xl font-bold text-[#262626] mb-3 line-clamp-2">
                     {module.title}
                   </h3>
-                  <p className="text-sm text-[#666] line-clamp-2">
+                  <p className="text-base text-[#666] line-clamp-3 leading-relaxed">
                     {module.description || `Explore ${module.topics?.length || 0} essential topics in this module.`}
                   </p>
                 </div>
 
                 {/* Topics Preview */}
-                <div className="px-6 pb-4 flex-1">
-                  <div className="space-y-2">
-                    {module.topics?.slice(0, 3).map((topic, topicIndex) => (
+                <div className="px-8 pb-6 flex-1">
+                  <div className="mb-3">
+                    <h4 className="text-xs uppercase tracking-[0.2em] text-[#c1b6a4] font-semibold mb-3">
+                      Topics Covered
+                    </h4>
+                  </div>
+                  <div className="space-y-3">
+                    {module.topics?.slice(0, 5).map((topic, topicIndex) => (
                       <div
                         key={topic.id}
-                        className="flex items-center gap-2 text-xs text-[#4a4a4a]"
+                        className="flex items-start gap-3 text-sm text-[#4a4a4a] p-2 rounded-lg hover:bg-[#fff5ef]/50 transition-colors"
                       >
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#a95757]" />
-                        <span className="line-clamp-1">{topic.title}</span>
+                        <div className="w-2 h-2 rounded-full bg-[#a95757] mt-1.5 flex-shrink-0" />
+                        <span className="line-clamp-2 flex-1">{topic.title}</span>
                       </div>
                     ))}
-                    {(module.topics?.length || 0) > 3 && (
-                      <div className="text-xs text-[#a95757] font-semibold flex items-center gap-1">
-                        +{(module.topics?.length || 0) - 3} more topics
-                        <ChevronRight className="w-3 h-3" />
+                    {(module.topics?.length || 0) > 5 && (
+                      <div className="text-sm text-[#a95757] font-semibold flex items-center gap-1 pl-5 pt-1">
+                        +{(module.topics?.length || 0) - 5} more topics
+                        <ChevronRight className="w-4 h-4" />
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 bg-gradient-to-r from-[#fff5ef] to-[#f2e7d9] border-t border-[#f2e7d9]">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#666]">
-                      {module.topics?.length || 0} topics
+                <div className="px-8 py-5 bg-gradient-to-r from-[#fff5ef] to-[#f2e7d9] border-t-2 border-[#f2e7d9]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-[#666] font-medium">
+                      {module.topics?.length || 0} {(module.topics?.length || 0) === 1 ? 'Topic' : 'Topics'}
                     </span>
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3].map((i) => (
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((i) => (
                         <Star
                           key={i}
-                          className={`w-3 h-3 ${
-                            i <= Math.min(module.topics?.length || 0, 3)
+                          className={`w-4 h-4 ${
+                            i <= Math.min(Math.ceil((module.topics?.length || 0) / 2), 5)
                               ? 'text-amber-400 fill-amber-400'
                               : 'text-gray-300 fill-gray-300'
                           }`}
@@ -268,8 +278,9 @@ export default function ModuleCarousel({
       </div>
 
       {/* Helper Text */}
-      <p className="text-xs text-[#999] text-center mt-3">
-        Drag or swipe to explore modules
+      <p className="text-sm text-[#999] text-center mt-4 flex items-center justify-center gap-2">
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#a95757] animate-pulse" />
+        Drag or swipe to explore all modules
       </p>
     </div>
   );

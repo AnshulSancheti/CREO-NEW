@@ -678,12 +678,13 @@ export default function CourseBuilder() {
             />
           )}
 
-          <div className="grid lg:grid-cols-[2fr,1fr] gap-8">
+          {/* Old Module List - Hidden, using carousel instead */}
+          {/* <div className="grid lg:grid-cols-[2fr,1fr] gap-8">
             <div className="space-y-4">
               {course.modules.map((module) => renderModule(module))}
             </div>
             <CourseNotesSidebar key={course.id} modules={course.modules} />
-          </div>
+          </div> */}
         </section>
       )}
     </div>

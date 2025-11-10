@@ -86,23 +86,17 @@ export default function CourseBuilder() {
   const [generationStats, setGenerationStats] = useState<{ time?: number; videos?: number } | null>(null);
   const [statusState, setStatusState] = useState<'idle' | 'loading' | 'done'>('idle');
   const completionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [cadenceIndex, setCadenceIndex] = useState(0);
   const durationVariants = useMemo(() => buildDurationVariants(formData.duration), [formData.duration]);
-  const activeDurationVariant =
-    durationVariants.length > 0 ? durationVariants[cadenceIndex % durationVariants.length] : { label: 'Weeks', value: '—' };
+  const activeDurationVariant = useMemo(() => {
+    const days = parseDurationToDays(formData.duration);
+    const weeks = Math.max(1, Math.round(days / 7));
+    return { label: 'Weeks', value: `${weeks} wk${weeks > 1 ? 's' : ''}` };
+  }, [formData.duration]);
   const aggregatedCourseVideos = useMemo(() => (course ? collectCourseVideos(course.modules) : []), [course]);
   const hasVideoContent = useMemo(
     () => Boolean(featuredVideos?.popular || featuredVideos?.topRated || aggregatedCourseVideos.length),
     [featuredVideos, aggregatedCourseVideos]
   );
-
-  useEffect(() => {
-    const count = durationVariants.length || 1;
-    const interval = setInterval(() => {
-      setCadenceIndex((prev) => (prev + 1) % count);
-    }, 2600);
-    return () => clearInterval(interval);
-  }, [durationVariants.length]);
 
   useEffect(
     () => () => {
@@ -486,31 +480,9 @@ export default function CourseBuilder() {
 
       <div className="bg-white rounded-3xl border border-[#f2e7d9] shadow-xl p-6 space-y-6">
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-[#c1b6a4]">Configuration</p>
-              <h2 className={`${headlineFont.className} text-2xl text-[#111]`}>Course Parameters</h2>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              <button
-                onClick={generateCourse}
-                disabled={loading}
-                className="rounded-full bg-[#111] text-white px-6 py-2 text-sm font-semibold tracking-wide disabled:opacity-50"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="relative flex h-3 w-3">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/40" />
-                      <span className="relative inline-flex h-3 w-3 rounded-full bg-white" />
-                    </span>
-                    Generating
-                  </span>
-                ) : (
-                  'Generate course'
-                )}
-              </button>
-              <div className="min-h-[2.75rem] min-w-[14rem] flex items-center justify-end px-2">{renderStatusBadge()}</div>
-            </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-[#c1b6a4]">Configuration</p>
+            <h2 className={`${headlineFont.className} text-2xl text-[#111]`}>Course Parameters</h2>
           </div>
         </div>
 
@@ -592,6 +564,29 @@ export default function CourseBuilder() {
               className="mt-1 w-full rounded-2xl border border-[#eaded0] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#262626]/15"
             />
           </label>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <div className="flex items-center gap-2">
+            {renderStatusBadge()}
+          </div>
+          <button
+            onClick={generateCourse}
+            disabled={loading}
+            className="rounded-full bg-[#111] text-white px-6 py-2.5 text-sm font-semibold tracking-wide disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/40" />
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-white" />
+                </span>
+                Generating
+              </span>
+            ) : (
+              'Generate course'
+            )}
+          </button>
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}

@@ -524,26 +524,12 @@ export default function CourseBuilder() {
               <option value="advanced">Advanced</option>
             </select>
           </label>
-          <label className="text-sm text-[#111] md:col-span-2 space-y-1">
-            <div className="flex items-center justify-between">
+          <label className="text-sm text-[#111] md:col-span-2">
+            <div className="flex items-center justify-between mb-1">
               <span>Duration</span>
-              <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.4em] text-[#c1b6a4]">
-                Time cadence
-                <div className="relative h-12 w-28 overflow-hidden rounded-2xl border border-[#f2e7d9] bg-[#fff5ef] px-2">
-                  <AnimatePresence initial={false} mode="wait">
-                    <motion.div
-                      key={`${activeDurationVariant.label}-${activeDurationVariant.value}`}
-                      initial={{ y: 10, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: -10, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: 'easeOut' }}
-                      className="flex h-full flex-col items-center justify-center text-[#a95757]"
-                    >
-                      <span className="text-[0.55rem] tracking-[0.2em]">{activeDurationVariant.label}</span>
-                      <span className="text-xs font-semibold">{activeDurationVariant.value}</span>
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
+              <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 px-3 py-1.5 rounded-lg border border-blue-200">
+                <span className="text-xs font-medium text-gray-600">Time:</span>
+                <span className="text-sm font-bold text-blue-600">{activeDurationVariant.value}</span>
               </div>
             </div>
             <input
@@ -552,7 +538,7 @@ export default function CourseBuilder() {
               value={formData.duration}
               onChange={handleInputChange}
               placeholder="e.g., 4 weeks"
-              className="mt-1 w-full rounded-2xl border border-[#eaded0] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#262626]/15"
+              className="w-full rounded-2xl border border-[#eaded0] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#262626]/15"
             />
           </label>
           <label className="flex items-center gap-2 text-sm text-[#111]">

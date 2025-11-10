@@ -1,20 +1,29 @@
-# LearnLoop UI
+# CREO - AI-Powered Learning Platform
 
 ## Overview
-LearnLoop is a Next.js-based learning platform that uses Google's Gemini AI to generate educational course content. The application features an interactive course builder with AI-powered content generation.
+CREO (formerly LearnLoop) is a Next.js-based learning platform that uses Google's Gemini AI to generate educational course content. The application features an interactive course builder with AI-powered content generation and a beautiful CREO brand aesthetic.
 
 **Current State**: Successfully migrated from Vercel to Replit and running in production mode.
 
 ## Recent Changes
-- **November 10, 2025 (Latest)**: Created stunning 3D homepage inspired by Phantom Cash design
-  - **Gradient Background**: Beautiful warm gradient (brown/beige palette)
-  - **Floating 3D Elements**: Animated course cards, mascot, progress badges, clouds
-  - **Glassmorphic Cards**: Translucent cards with backdrop blur effects
-  - **Large Hero Typography**: "Meet LearnLoop" in bold display font with shadows
-  - **Floating Animations**: Smooth infinite animations on all floating elements
-  - **Interactive Sparkles**: Animated star and sparkle decorations
-  - **Yellow CTA Button**: Bright yellow call-to-action with gradient
-  - **Waves Background Overlay**: Subtle wave animation layer
+- **November 10, 2025 (Latest)**: Implemented complete dark mode toggle system
+  - **Dark Mode Toggle**: Moon/Sun icon button in navbar for instant theme switching
+  - **localStorage Persistence**: Theme preference saved and persists across sessions
+  - **Dark Theme Colors**: Deep purples, browns, and grays (`#1a120e`, `#1f1410`, `#0f0a08`)
+  - **Light Theme Colors**: Warm beiges and creams (`#fffaf6`, `#fff0e8`, `#ffe8e8`)
+  - **Coral Accents**: Consistent `#c24f63` accent color across both themes
+  - **Smooth Transitions**: 300-500ms transition duration for all theme switches
+  - **Theme-Aware Components**: All sections (hero, features, flow, study groups) fully theme-responsive
+  - **Typography Adjustments**: Optimized text colors for readability in both modes
+  - **Shadow System**: Enhanced shadows and glows for dark mode depth
+  
+- **November 10, 2025**: Redesigned homepage with CREO brand aesthetic
+  - **Elegant Floating Elements**: Refined 3D floating cards, icons, and badges
+  - **CREO Brand Colors**: Warm cream/beige gradients with coral accents
+  - **Typography**: Playfair Display headlines, Space Grotesk body text
+  - **Meet Creo Hero**: Massive 7xl-9xl headline with elegant shadows
+  - **Clean Navigation**: Glassmorphic buttons with proper brand styling
+  - **Removed Tagline**: Eliminated "This is Smart Learning" text per feedback
   
 - **November 10, 2025**: Added beautiful animated waves background to course builder
   - **Perlin Noise Waves**: Interactive canvas-based wave animation using Perlin noise
@@ -70,20 +79,19 @@ LearnLoop is a Next.js-based learning platform that uses Google's Gemini AI to g
 - **Styling**: Tailwind CSS 4.0
 - **Animations**: Framer Motion 11.0.28
 - **AI Integration**: Google Gemini API
-- **Icons**: Lucide React
+- **Icons**: Lucide React (Moon, Sun, BookOpen, GraduationCap, etc.)
 - **Language**: TypeScript 5
 
 ### Key Features
 - AI-powered course generation using Gemini API
-- **Gamified roadmap visualization** - Candy Crush/Byju's-style learning journey map
-  - Animated SVG paths connecting module nodes
-  - Interactive hover/focus cards with module details
-  - Progress indicators and achievement icons
-  - Fully accessible keyboard navigation
-- Interactive course builder
+- **Dark Mode**: Complete theme switching with localStorage persistence
+- **3D Homepage**: Floating elements with CREO brand aesthetic
+- **Animated Waves**: Perlin noise background with mouse interaction
+- Interactive course builder with carousel navigation
 - API testing interface
 - Video workspace integration
 - Learning path and roadmap progress tracking
+- Notes sidebar and social collaboration space
 
 ### Directory Structure
 ```
@@ -93,8 +101,9 @@ src/
 │   │   ├── generate/     # Gemini AI generation endpoint
 │   │   └── course/       # Course-related endpoints
 │   ├── components/       # React components
-│   │   ├── GameifiedRoadmap.tsx    # Gamified learning journey visualization
-│   │   ├── CourseBuilder.tsx       # Main course builder interface
+│   │   ├── ModuleCarousel.tsx       # 3D carousel module navigation
+│   │   ├── CourseBuilder.tsx        # Main course builder interface
+│   │   ├── Waves.tsx                # Animated waves background
 │   │   ├── FeaturedVideoWorkspace.tsx
 │   │   ├── CourseNotesSidebar.tsx
 │   │   └── ...
@@ -104,6 +113,34 @@ src/
 ├── lib/                 # Shared libraries
 └── public/             # Static assets
 ```
+
+## Design System
+
+### CREO Brand Colors
+**Light Mode:**
+- Background: `#fffaf6`, `#fff0e8`, `#ffe8e8` (warm cream/beige gradients)
+- Text: `#1f120f` (rich dark brown)
+- Accent: `#c24f63` (coral)
+- Secondary: `#b37871`, `#5b4743` (muted browns)
+- Borders: `#f2e1d8`, `#f2d6c4` (light beige)
+
+**Dark Mode:**
+- Background: `#1a120e`, `#1f1410`, `#0f0a08` (deep brown/black)
+- Text: `#f5e6dc` (warm cream)
+- Accent: `#c24f63`, `#ff8ab6` (coral/pink)
+- Secondary: `#b8998a`, `#c9a89a` (warm tans)
+- Borders: `#3a2f2a` (dark brown)
+
+### Typography
+- **Headlines**: Playfair Display (600, 700, 900 weights)
+- **Body**: Space Grotesk (400, 500, 600 weights)
+- **Uppercase Labels**: 0.3em-0.6em tracking for elegance
+
+### Component Patterns
+- **Glassmorphic Elements**: backdrop-blur-sm with semi-transparent backgrounds
+- **Rounded Corners**: 2xl-3xl border radius (24px-40px)
+- **Shadows**: Layered shadows with coral/brown tints
+- **Transitions**: 300-500ms duration for smooth theme switches
 
 ## Environment Variables
 
@@ -163,4 +200,5 @@ Course testing endpoint
 - Check browser console and server logs for the same request ID to trace issues
 
 ## User Preferences
-- None documented yet
+- **Theme Preference**: Stored in localStorage as `creoDarkMode` (true/false)
+- **Intro Animation**: Skip preference stored as `creoIntroPlayed` in localStorage

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { CourseModule } from '@/app/types/course';
 
 interface CourseNotesSidebarProps {
@@ -64,7 +64,7 @@ export default function CourseNotesSidebar({ modules, selectedModuleId: propModu
   };
 
   // Update selected module when prop changes
-  useMemo(() => {
+  useEffect(() => {
     if (propModuleId && propModuleId !== selectedModuleId) {
       setSelectedModuleId(propModuleId);
       const firstTopic = modules.find((mod) => mod.id === propModuleId)?.topics[0];

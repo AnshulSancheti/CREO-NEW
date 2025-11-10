@@ -76,11 +76,12 @@ const GameifiedRoadmap = ({ course }: GameifiedRoadmapProps) => {
           {/* Animated path */}
           <motion.path
             d={pathData}
-            stroke="url(#pathGradient)"
-            strokeWidth="3"
+            stroke="#c1b6a4"
+            strokeWidth="4"
             fill="none"
             strokeLinecap="round"
             strokeDasharray={totalLength}
+            strokeOpacity="0.6"
             initial={{ strokeDashoffset: totalLength }}
             animate={{ strokeDashoffset: 0 }}
             transition={{ duration: 2, ease: 'easeInOut', delay: 0.3 }}
@@ -123,8 +124,12 @@ const GameifiedRoadmap = ({ course }: GameifiedRoadmapProps) => {
         <div className="relative" style={{ marginTop: `-${200 + modules.length * 180}px`, height: `${200 + modules.length * 180}px` }}>
           {modules.map((module, index) => {
             const pos = getNodePosition(index, modules.length);
-            const gradients = ['nodeGradient1', 'nodeGradient2', 'nodeGradient3'];
-            const gradient = gradients[index % gradients.length];
+            const gradientColors = [
+              'linear-gradient(135deg, #ff9a8b 0%, #a95757 100%)',
+              'linear-gradient(135deg, #ffd89b 0%, #c1b6a4 100%)',
+              'linear-gradient(135deg, #a18cd1 0%, #a95757 100%)'
+            ];
+            const gradient = gradientColors[index % gradientColors.length];
             
             return (
               <motion.div
@@ -158,18 +163,9 @@ const GameifiedRoadmap = ({ course }: GameifiedRoadmapProps) => {
                   <div 
                     className="relative w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 border-white"
                     style={{
-                      background: `url(#${gradient})`
+                      background: gradient
                     }}
                   >
-                    <svg width="64" height="64" className="absolute inset-0">
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="28"
-                        fill={`url(#${gradient})`}
-                      />
-                    </svg>
-                    
                     <div className="relative z-10 text-white">
                       {index === 0 && <Star className="w-6 h-6" fill="currentColor" aria-hidden="true" />}
                       {index === modules.length - 1 && <Trophy className="w-6 h-6" aria-hidden="true" />}

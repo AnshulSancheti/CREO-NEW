@@ -543,18 +543,15 @@ export default function CourseBuilder() {
                   <div className="flex items-center gap-3">
                     <div className="flex flex-col">
                       <span className="text-[0.65rem] uppercase tracking-[0.3em] text-[#c1b6a4] font-medium">Time</span>
-                      <AnimatePresence mode="wait">
-                        <motion.span
-                          key={activeDurationVariant.value}
-                          initial={{ y: 6, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          exit={{ y: -6, opacity: 0 }}
-                          transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                          className="text-xl font-bold text-[#a95757] tracking-tight"
-                        >
-                          {activeDurationVariant.value}
-                        </motion.span>
-                      </AnimatePresence>
+                      <motion.span
+                        key={activeDurationVariant.value}
+                        initial={{ y: 6, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                        className="text-xl font-bold text-[#a95757] tracking-tight"
+                      >
+                        {activeDurationVariant.value}
+                      </motion.span>
                     </div>
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#a95757]/10 to-[#c1b6a4]/10 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-[#a95757]" />

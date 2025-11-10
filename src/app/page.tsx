@@ -362,119 +362,96 @@ export default function Home() {
           <Star className="w-5 h-5 fill-current" />
         </motion.div>
 
-        {/* Navigation */}
-        <nav className="relative z-30 px-6 py-6">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                isDarkMode ? 'bg-[#f5e6dc] text-[#1f120f]' : 'bg-[#1f120f] text-white'
-              } text-lg font-semibold transition-colors duration-300`}>
-                ∞
-              </div>
-              <div className={`relative inline-flex items-center overflow-hidden rounded-full border ${
-                isDarkMode 
-                  ? 'border-[#3a2f2a] bg-[#1f1410]/80 text-[#f5e6dc]' 
-                  : 'border-[#f2d6c4] bg-white/80 text-[#1f120f]'
-              } px-5 py-1.5 text-sm font-bold uppercase tracking-[0.35em] transition-colors duration-300`}>
-                <motion.span
-                  aria-hidden
-                  className="absolute inset-0"
-                  style={{
-                    background: isDarkMode 
-                      ? 'linear-gradient(120deg, rgba(194,79,99,0.15), rgba(212,165,116,0.2), rgba(194,79,99,0.15))'
-                      : 'linear-gradient(120deg, rgba(255,218,193,0.85), rgba(255,173,196,0.95), rgba(255,218,193,0.85))'
-                  }}
-                  animate={{ x: ['-30%', '30%', '-10%'], opacity: [0.6, 0.9, 0.6] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                />
-                <span className={`relative z-10 tracking-[0.35em] ${
-                  isDarkMode ? 'text-[#f5e6dc]' : 'text-[#381c15]'
+        {/* Navigation - Phantom-inspired */}
+        <nav className={`${bodyFont.className} relative z-30 px-6 py-6`}>
+          <div className="max-w-7xl mx-auto flex items-center">
+            {/* Logo - Left */}
+            <div className="flex-1">
+              <Link href="/" className="flex items-center gap-2 w-fit">
+                <div className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                  isDarkMode ? 'bg-[#f5e6dc] text-[#1f120f]' : 'bg-[#1f120f] text-white'
+                } text-base font-bold transition-colors duration-300`}>
+                  ∞
+                </div>
+                <span className={`${headlineFont.className} text-xl font-bold ${
+                  isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
                 }`}>CREO</span>
+              </Link>
+            </div>
+
+            {/* Center Pills Menu - Absolutely Centered */}
+            <div className="flex justify-center">
+              <div className={`hidden md:flex items-center gap-1 backdrop-blur-xl rounded-full border px-2 py-2 shadow-lg transition-colors duration-300 ${
+                isDarkMode 
+                  ? 'bg-[#1f1410]/70 border-[#3a2f2a]/50' 
+                  : 'bg-white/70 border-white/40'
+              }`}>
+                <Link
+                  href="/course"
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    isDarkMode 
+                      ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
+                      : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
+                  }`}
+                >
+                  Course Builder
+                </Link>
+                <Link
+                  href="/api-test"
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    isDarkMode 
+                      ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
+                      : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
+                  }`}
+                >
+                  API
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowAuth((prev) => !prev)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    isDarkMode 
+                      ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
+                      : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
+                  }`}
+                >
+                  Sign in
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <Link
-                href="/course"
-                className={`px-5 py-2.5 rounded-full border font-semibold text-sm transition-all shadow-sm ${
-                  isDarkMode 
-                    ? 'bg-[#1f1410]/70 border-[#3a2f2a] text-[#f5e6dc] hover:bg-[#2a1f1a]' 
-                    : 'bg-white/70 border-[#f2e1d8] text-[#1f120f] hover:bg-white'
-                }`}
-              >
-                Launch Builder
-              </Link>
-              <Link
-                href="/api-test"
-                className={`px-5 py-2.5 rounded-full border font-semibold text-sm transition-all ${
-                  isDarkMode 
-                    ? 'border-[#3a2f2a] text-[#f5e6dc] hover:bg-[#1f1410]/50' 
-                    : 'border-[#1f120f]/10 text-[#1f120f] hover:bg-white/50'
-                }`}
-              >
-                API Console
-              </Link>
-              
-              {/* Dark Mode Toggle */}
+
+            {/* Right Actions */}
+            <div className="flex-1 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={toggleDarkMode}
                 aria-label="Toggle dark mode"
-                className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all ${
+                className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
                   isDarkMode 
-                    ? 'bg-[#f5e6dc] text-[#1f120f] border-[#f5e6dc] hover:bg-[#e6d7cd]' 
-                    : 'bg-[#1f120f] text-white border-[#1f120f] hover:bg-[#2f221f]'
+                    ? 'bg-[#2a1f1a] text-[#f5e6dc] hover:bg-[#3a2f2a]' 
+                    : 'bg-[#f2e1d8]/50 text-[#1f120f] hover:bg-[#f2e1d8]'
                 }`}
               >
-                {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
-
-              <button
-                type="button"
-                aria-label="Show learning journey"
-                onClick={() => {
-                  setShowJourney((prev) => {
-                    const next = !prev;
-                    if (next) {
-                      setShowAuth(false);
-                    }
-                    return next;
-                  });
-                }}
-                className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all ${
-                  showJourney 
-                    ? isDarkMode 
-                      ? 'bg-[#f5e6dc] text-[#1f120f] border-[#f5e6dc]' 
-                      : 'bg-[#1f120f] text-white border-[#1f120f]'
-                    : isDarkMode 
-                      ? 'bg-[#1f1410]/70 text-[#f5e6dc] border-[#3a2f2a]' 
-                      : 'bg-white/70 text-[#1f120f] border-[#f2e1d8]'
-                }`}
-              >
-                <BookOpenCheck className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowJourney(false);
-                  setShowAuth((prev) => !prev);
-                }}
-                className={`rounded-full border px-4 py-2 font-semibold shadow-sm transition-all ${
+              
+              <Link
+                href="/course"
+                className={`px-5 py-2.5 rounded-full font-semibold text-sm transition-all shadow-lg ${
                   isDarkMode 
-                    ? 'border-[#3a2f2a] bg-[#1f1410]/80 text-[#f5e6dc] hover:bg-[#2a1f1a]' 
-                    : 'border-[#1f120f]/15 bg-white/80 text-[#1f120f] hover:bg-white'
+                    ? 'bg-[#c24f63] text-white hover:bg-[#d15f73]' 
+                    : 'bg-[#c24f63] text-white hover:bg-[#d15f73]'
                 }`}
               >
-                Sign in
-              </button>
-              {showJourney && (
-                <div className={`absolute right-0 top-14 z-30 w-[30rem] max-h-[85vh] overflow-visible rounded-3xl border ${
-                  isDarkMode ? 'border-[#3a2f2a] bg-[#1f1410]/95' : 'border-[#f2e1d8] bg-white/95'
-                } p-2 shadow-[0_30px_80px_rgba(0,0,0,0.15)] transition-colors duration-300`}>
-                  <CourseProgress journey={navJourney} />
-                </div>
-              )}
-              {showAuth && <AuthDialogue onClose={() => setShowAuth(false)} isDark={isDarkMode} />}
+                Launch Builder
+              </Link>
             </div>
+            
+            {showAuth && (
+              <div className="absolute right-6 top-20">
+                <AuthDialogue onClose={() => setShowAuth(false)} isDark={isDarkMode} />
+              </div>
+            )}
           </div>
         </nav>
 

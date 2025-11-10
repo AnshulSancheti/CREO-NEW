@@ -6,7 +6,15 @@ CREO (formerly LearnLoop) is a Next.js-based learning platform that uses Google'
 **Current State**: Successfully migrated from Vercel to Replit and running in production mode.
 
 ## Recent Changes
-- **November 10, 2025 (Latest)**: Extended dark mode to course builder and learning path
+- **November 10, 2025 (Latest)**: Redesigned homepage with Phantom-inspired navbar and purposeful floating elements
+  - **Glassmorphic Navbar**: Phantom Cash-inspired centered pill menu with backdrop blur
+  - **Consistent Typography**: Playfair Display for logo/headlines, Space Grotesk for body/menu items
+  - **Purposeful Floating Cards**: Replaced random decorative elements with CREO feature cards (AI Course Builder, Personalized Paths, Curated Videos, Study Pods, Study Stream)
+  - **Centered Layout**: Three-column navbar with logo left, menu center, CTA right
+  - **Real Features Only**: Menu items link to actual CREO pages (Course Builder, API, Sign in)
+  - **Dark Mode Support**: All navbar and floating elements respect theme with smooth transitions
+  
+- **November 10, 2025**: Extended dark mode to course builder and learning path
   - **Course Builder Dark Mode**: Complete dark theme for /course page with navbar toggle
   - **Synced Theme State**: Dark mode preference syncs between homepage and course builder via localStorage
   - **All Components Themed**: CourseBuilder, ModuleCarousel, CourseNotesSidebar, ModuleSocialSpace, LearningPathCohortCard all support dark mode

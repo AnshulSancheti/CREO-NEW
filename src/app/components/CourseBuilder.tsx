@@ -534,28 +534,22 @@ export default function CourseBuilder() {
             <div className="flex items-center justify-between mb-2">
               <span>Duration</span>
               <motion.div
-                animate={{ scale: [1, 1.015, 1] }}
-                transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+                animate={{ scale: [1, 1.01, 1] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                 className="relative group"
               >
-                <div className="absolute -inset-1 bg-gradient-to-r from-[#a95757]/20 via-[#c1b6a4]/20 to-[#a95757]/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-500" />
-                <div className="relative px-5 py-2.5 bg-gradient-to-br from-[#fff5ef] via-white to-[#fff5ef] border border-[#f2e7d9] rounded-2xl shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-col">
-                      <span className="text-[0.65rem] uppercase tracking-[0.3em] text-[#c1b6a4] font-medium">Time</span>
-                      <motion.span
-                        key={activeDurationVariant.value}
-                        initial={{ y: 6, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className="text-xl font-bold text-[#a95757] tracking-tight"
-                      >
-                        {activeDurationVariant.value}
-                      </motion.span>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#a95757]/10 to-[#c1b6a4]/10 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-[#a95757]" />
-                    </div>
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#a95757]/10 via-[#c1b6a4]/10 to-[#a95757]/10 rounded-xl blur opacity-0 group-hover:opacity-100 transition duration-300" />
+                <div className="relative px-3 py-1.5 bg-gradient-to-br from-[#fff5ef] to-white border border-[#f2e7d9] rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[0.55rem] uppercase tracking-[0.25em] text-[#c1b6a4]">Time</span>
+                    <span className="text-sm text-[#a95757]">
+                      {(() => {
+                        const input = durationInput || formData.duration || '4 weeks';
+                        const days = parseDurationToDays(input);
+                        const weeks = Math.max(1, Math.round(days / 7));
+                        return `${weeks} wk${weeks > 1 ? 's' : ''}`;
+                      })()}
+                    </span>
                   </div>
                 </div>
               </motion.div>

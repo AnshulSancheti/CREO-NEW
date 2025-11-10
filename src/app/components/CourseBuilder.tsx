@@ -97,6 +97,7 @@ export default function CourseBuilder() {
   const [featuredVideos, setFeaturedVideos] = useState<FeaturedVideosPayload | null>(null);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [generationStats, setGenerationStats] = useState<{ time?: number; videos?: number } | null>(null);
   const [statusState, setStatusState] = useState<'idle' | 'loading' | 'done'>('idle');
   const completionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -314,6 +315,7 @@ export default function CourseBuilder() {
 
       if (data.course && data.course.modules.length > 0) {
         setExpandedModules(new Set([data.course.modules[0].id]));
+        setSelectedModuleId(data.course.modules[0].id);
       }
     } catch (err) {
       console.error(`[${requestId}] Error:`, err instanceof Error ? err.message : err);
@@ -654,12 +656,15 @@ export default function CourseBuilder() {
           <ModuleCarousel
             modules={course.modules}
             onModuleSelect={(moduleId, index) => {
-              toggleModule(moduleId);
+              setSelectedModuleId(moduleId);
+              setExpandedModules(new Set([moduleId]));
               // Scroll to the module details section
-              const moduleElement = document.getElementById(`module-${moduleId}`);
-              if (moduleElement) {
-                moduleElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
+              setTimeout(() => {
+                const detailElement = document.getElementById('module-details');
+                if (detailElement) {
+                  detailElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }, 100);
             }}
             loop={true}
           />
@@ -678,13 +683,23 @@ export default function CourseBuilder() {
             />
           )}
 
-          {/* Old Module List - Hidden, using carousel instead */}
-          {/* <div className="grid lg:grid-cols-[2fr,1fr] gap-8">
-            <div className="space-y-4">
-              {course.modules.map((module) => renderModule(module))}
+          {/* Module Details Section */}
+          {selectedModuleId && (
+            <div id="module-details" className="scroll-mt-8">
+              <div className="grid lg:grid-cols-[2fr,1fr] gap-8">
+                <div className="space-y-4">
+                  {course.modules
+                    .filter((m) => m.id === selectedModuleId)
+                    .map((module) => renderModule(module))}
+                </div>
+                <CourseNotesSidebar 
+                  key={`${course.id}-${selectedModuleId}`} 
+                  modules={course.modules}
+                  selectedModuleId={selectedModuleId}
+                />
+              </div>
             </div>
-            <CourseNotesSidebar key={course.id} modules={course.modules} />
-          </div> */}
+          )}
         </section>
       )}
     </div>

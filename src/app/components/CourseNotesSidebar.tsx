@@ -5,6 +5,7 @@ import { CourseModule } from '@/app/types/course';
 
 interface CourseNotesSidebarProps {
   modules: CourseModule[];
+  selectedModuleId?: string;
 }
 
 interface CourseNote {
@@ -15,9 +16,9 @@ interface CourseNote {
   createdAt: string;
 }
 
-export default function CourseNotesSidebar({ modules }: CourseNotesSidebarProps) {
-  const [selectedModuleId, setSelectedModuleId] = useState(modules[0]?.id || '');
-  const [selectedTopicId, setSelectedTopicId] = useState(modules[0]?.topics[0]?.id || '');
+export default function CourseNotesSidebar({ modules, selectedModuleId: propModuleId }: CourseNotesSidebarProps) {
+  const [selectedModuleId, setSelectedModuleId] = useState(propModuleId || modules[0]?.id || '');
+  const [selectedTopicId, setSelectedTopicId] = useState(modules.find(m => m.id === (propModuleId || modules[0]?.id))?.topics[0]?.id || '');
   const [noteText, setNoteText] = useState('');
   const [notes, setNotes] = useState<CourseNote[]>([]);
 
@@ -61,6 +62,15 @@ export default function CourseNotesSidebar({ modules }: CourseNotesSidebarProps)
     const date = new Date(iso);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  // Update selected module when prop changes
+  useMemo(() => {
+    if (propModuleId && propModuleId !== selectedModuleId) {
+      setSelectedModuleId(propModuleId);
+      const firstTopic = modules.find((mod) => mod.id === propModuleId)?.topics[0];
+      setSelectedTopicId(firstTopic?.id || '');
+    }
+  }, [propModuleId, modules, selectedModuleId]);
 
   return (
     <aside className="bg-white rounded-3xl border border-[#f2e7d9] shadow-lg p-5 space-y-5 sticky top-6 max-h-[80vh] overflow-y-auto">

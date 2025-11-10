@@ -6,19 +6,17 @@ LearnLoop is a Next.js-based learning platform that uses Google's Gemini AI to g
 **Current State**: Successfully migrated from Vercel to Replit and running in production mode.
 
 ## Recent Changes
-- **November 10, 2025 (Latest)**: Enhanced interactive module carousel as core module interface
-  - **Full-Width Cards**: 900px wide cards showing comprehensive module details
-  - **5 Topic Preview**: Each card displays up to 5 topics with hover effects
-  - **Enhanced Typography**: Larger text (2xl headings, base descriptions) for readability
-  - **Star Ratings**: 5-star system based on topic count
-  - **Gradient Borders**: Hover effects with smooth border color transitions
+- **November 10, 2025 (Latest)**: Interactive carousel with full module details
+  - **Master-Detail Flow**: Carousel cards control expanded module view below
+  - **Full-Width Cards**: 900px wide carousel cards with topic previews
+  - **Complete Module Details**: Click any card to see full topics, objectives, quizzes, videos
+  - **Integrated Features**: Notes sidebar, social space, quiz generation all working
+  - **Smart Selection**: Auto-selects first module on course generation
+  - **Smooth Scrolling**: Clicking carousel card scrolls to expanded details
   - **3D Card Carousel**: Swipeable module cards with perspective transforms
-  - **Drag & Swipe**: Smooth framer-motion drag gestures to navigate modules
-  - **Auto-Loop**: Infinite carousel that seamlessly loops through all modules
-  - **Progress Indicators**: Bottom navigation dots showing current module
-  - **Replaced Traditional List**: Carousel is now the primary module viewing interface
-  - **Responsive Design**: Matches LearnLoop's warm color palette (#a95757, #f2e7d9)
-  - **Accessibility**: Keyboard navigation and ARIA labels
+  - **5 Topic Preview**: Each carousel card shows up to 5 topics
+  - **Star Ratings**: 5-star system based on topic count
+  - **All Original Features Restored**: Topics, objectives, quizzes, notes, videos all functional
   
 - **November 10, 2025**: Simplified course display
   - Removed gamified roadmap visualization

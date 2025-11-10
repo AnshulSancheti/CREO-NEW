@@ -14,6 +14,7 @@ import FeaturedVideoWorkspace from '@/app/components/FeaturedVideoWorkspace';
 import CourseNotesSidebar from '@/app/components/CourseNotesSidebar';
 import LearningPathCohortCard from '@/app/components/LearningPathCohortCard';
 import ModuleSocialSpace from '@/app/components/ModuleSocialSpace';
+import GameifiedRoadmap from '@/app/components/GameifiedRoadmap';
 import { Playfair_Display, Space_Grotesk } from 'next/font/google';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -618,6 +619,11 @@ export default function CourseBuilder() {
 
       {course && (
         <section className="space-y-8">
+          {/* Gamified Roadmap View */}
+          <div className="bg-gradient-to-br from-[#fffcf9] via-white to-[#fff5ef] rounded-3xl border border-[#f2e7d9] shadow-xl p-8 overflow-hidden">
+            <GameifiedRoadmap course={course} />
+          </div>
+
           <div className="bg-white rounded-3xl border border-[#f2e7d9] shadow-xl p-6 space-y-4">
             <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
               <div>

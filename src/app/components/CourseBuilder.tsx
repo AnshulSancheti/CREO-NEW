@@ -135,12 +135,12 @@ const transformCourseData = (apiCourse: any, requestId: string): Course => {
       moduleNumber: mod.order,
       title: mod.title,
       description: mod.description,
-      learningObjectives: JSON.parse(mod.outcomes || '[]'),
+      learningObjectives: typeof mod.outcomes === 'string' ? JSON.parse(mod.outcomes) : mod.outcomes || [],
       estimatedDuration: `${mod.lessons?.length || 4} lessons`,
       topics: [{
         title: mod.title,
         description: mod.description,
-        contentPoints: JSON.parse(mod.outcomes || '[]'),
+        contentPoints: typeof mod.outcomes === 'string' ? JSON.parse(mod.outcomes) : mod.outcomes || [],
         videos: (mod.resources || []).map((res: any) => ({
           id: res.id,
           title: res.title,

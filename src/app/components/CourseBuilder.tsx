@@ -378,13 +378,15 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
       }
 
       const jobId = startData.jobId;
+      currentJobId.current = jobId;
+      pollingRef.current = true;
       console.log(`[${idempotencyKey}] Job started: ${jobId}`);
       
-      // Step 2: Poll for completion
+      // Step 2: Poll for completion (resilient to hot reload)
       let attempts = 0;
       const maxAttempts = 60; // 2 minutes max
       
-      while (attempts < maxAttempts) {
+      while (attempts < maxAttempts && pollingRef.current) {
         await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
         
         const statusResponse = await fetch(`/api/jobs/${jobId}`);

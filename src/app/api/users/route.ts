@@ -27,19 +27,9 @@ type UserPayload = {
 export async function POST(request: NextRequest) {
   try {
     const body: UserPayload = await request.json();
-
-    const payload: UserPayload = {
-      name: body.name ?? 'Learner',
-      subjects: body.subjects ?? [],
-      goals: body.goals ?? '',
-      learningStyle: body.learningStyle ?? 'default',
-      attentionSpan: body.attentionSpan ?? 'medium',
-      pastStruggles: body.pastStruggles ?? [],
-      progressNotes: body.progressNotes ?? ''
-    };
     
-    // Validate after applying defaults
-    if (payload.name && payload.name.trim().length === 0) {
+    // Validate: if name is explicitly provided and empty, reject it
+    if (body.hasOwnProperty('name') && body.name !== undefined && body.name.trim().length === 0) {
       return NextResponse.json(
         { 
           success: false, 
@@ -51,6 +41,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const payload: UserPayload = {
+      name: body.name ?? 'Learner',
+      subjects: body.subjects ?? [],
+      goals: body.goals ?? '',
+      learningStyle: body.learningStyle ?? 'default',
+      attentionSpan: body.attentionSpan ?? 'medium',
+      pastStruggles: body.pastStruggles ?? [],
+      progressNotes: body.progressNotes ?? ''
+    };
 
     let profile;
     let statusCode = 201;

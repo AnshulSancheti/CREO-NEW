@@ -9,12 +9,16 @@ import { randomUUID } from 'crypto';
  * 
  * Start course generation job
  * Idempotent via idempotencyKey
+ * 
+ * ALWAYS returns JSON (never empty body)
  */
 
 export async function POST(request: NextRequest) {
+  const traceId = `trace_${randomUUID()}`;
+  
   try {
     // Parse and validate request
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const validationResult = GeneratePathRequestSchema.safeParse(body);
 
     if (!validationResult.success) {

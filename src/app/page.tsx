@@ -13,63 +13,13 @@ import { HERO_FLOATING_ELEMENTS } from '@/app/config/heroFloatingElements';
 import LearningCoach from '@/app/components/learning-coach/LearningCoach';
 import LandingChat from '@/app/components/chat/LandingChat';
 import GamifiedDashboard from '@/app/components/dashboard/GamifiedDashboard';
+import { useAuth } from '@/app/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { LogOut, User } from 'lucide-react';
 
 const headlineFont = Playfair_Display({ subsets: ['latin'], weight: ['600', '700', '900'] });
 const bodyFont = Space_Grotesk({ subsets: ['latin'], weight: ['400', '500', '600'] });
 
-const AuthDialogue = ({ onClose, isDark }: { onClose: () => void; isDark: boolean }) => (
-  <div className={`absolute right-0 top-12 z-30 w-80 rounded-3xl border ${
-    isDark ? 'border-[#3a2f2a] bg-[#1f1410]' : 'border-[#f2e1d8] bg-white'
-  } p-6 shadow-xl transition-colors duration-300`}>
-    <div className="space-y-3">
-      <p className={`text-[0.65rem] uppercase tracking-[0.4em] ${isDark ? 'text-[#c9a89a]' : 'text-[#b37871]'}`}>Quick access</p>
-      <h4 className={`${headlineFont.className} text-xl ${isDark ? 'text-[#f5e6dc]' : 'text-[#1f120f]'}`}>Sign into your cockpit</h4>
-      <div className="space-y-2">
-        <label className={`text-xs ${isDark ? 'text-[#b8998a]' : 'text-[#5b4743]'}`}>
-          Email
-          <input
-            type="email"
-            placeholder="you@example.com"
-            className={`mt-1 w-full rounded-2xl border ${
-              isDark 
-                ? 'border-[#3a2f2a] bg-[#2a1f1a] text-[#f5e6dc] placeholder:text-[#7d6b5f]' 
-                : 'border-[#eaded0] bg-white text-[#1f120f]'
-            } px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c24f63]/30 transition-colors duration-300`}
-          />
-        </label>
-        <label className={`text-xs ${isDark ? 'text-[#b8998a]' : 'text-[#5b4743]'}`}>
-          Password
-          <input
-            type="password"
-            placeholder="••••••••"
-            className={`mt-1 w-full rounded-2xl border ${
-              isDark 
-                ? 'border-[#3a2f2a] bg-[#2a1f1a] text-[#f5e6dc] placeholder:text-[#7d6b5f]' 
-                : 'border-[#eaded0] bg-white text-[#1f120f]'
-            } px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c24f63]/30 transition-colors duration-300`}
-          />
-        </label>
-      </div>
-      <button
-        type="button"
-        className={`w-full rounded-full ${
-          isDark ? 'bg-[#f5e6dc] text-[#1f120f]' : 'bg-[#1f120f] text-white'
-        } py-2 text-sm font-semibold transition hover:-translate-y-0.5`}
-      >
-        Sign in
-      </button>
-      <button
-        type="button"
-        onClick={onClose}
-        className={`w-full rounded-full border ${
-          isDark ? 'border-[#3a2f2a] text-[#f5e6dc]' : 'border-[#1f120f]/10 text-[#1f120f]'
-        } py-2 text-sm font-semibold transition-colors duration-300`}
-      >
-        Close
-      </button>
-    </div>
-  </div>
-);
 
 const HERO_STATS = [
   { label: 'Learning paths created', value: '18,240' },
@@ -166,6 +116,8 @@ export default function Home() {
   const [showIntro, setShowIntro] = useState<boolean | null>(null);
   const [navJourney, setNavJourney] = useState<JourneyPreview | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const { user, logout, isLoading: authLoading } = useAuth();
+  const router = useRouter();
 
   // Dark mode initialization
   useEffect(() => {
@@ -421,17 +373,29 @@ export default function Home() {
                 >
                   API
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => setShowAuth((prev) => !prev)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    isDarkMode 
-                      ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
-                      : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
-                  }`}
-                >
-                  Sign in
-                </button>
+                {user ? (
+                  <Link
+                    href="/dashboard"
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      isDarkMode 
+                        ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
+                        : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                ) : (
+                  <Link
+                    href="/auth"
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      isDarkMode 
+                        ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
+                        : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
+                    }`}
+                  >
+                    Sign in
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -450,24 +414,49 @@ export default function Home() {
                 {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
               
-              <button
-                type="button"
-                onClick={() => setShowAuth((prev) => !prev)}
-                className={`px-5 py-2.5 rounded-full font-semibold text-sm transition-all shadow-lg ${
-                  isDarkMode 
-                    ? 'bg-[#c24f63] text-white hover:bg-[#d15f73]' 
-                    : 'bg-[#c24f63] text-white hover:bg-[#d15f73]'
-                }`}
-              >
-                Sign in
-              </button>
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/dashboard"
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      isDarkMode 
+                        ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
+                        : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
+                    }`}
+                  >
+                    <User className="h-4 w-4" />
+                    {user.email.split('@')[0]}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logout();
+                      router.push('/auth');
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      isDarkMode 
+                        ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
+                        : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
+                    }`}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/auth"
+                  className={`px-5 py-2.5 rounded-full font-semibold text-sm transition-all shadow-lg ${
+                    isDarkMode 
+                      ? 'bg-[#c24f63] text-white hover:bg-[#d15f73]' 
+                      : 'bg-[#c24f63] text-white hover:bg-[#d15f73]'
+                  }`}
+                >
+                  Sign in
+                </Link>
+              )}
             </div>
             
-            {showAuth && (
-              <div className="absolute right-6 top-20">
-                <AuthDialogue onClose={() => setShowAuth(false)} isDark={isDarkMode} />
-              </div>
-            )}
           </div>
         </nav>
 

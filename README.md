@@ -7,16 +7,23 @@ Production-ready, adaptive tutoring experience that detects when learners are bl
 - **SQLite persistence** via `better-sqlite3` (`data/learning.db`) for user profiles, messages, and topic-level progress.
 - **Adaptive prompting layer** that injects profile data, frustration signals, and pacing guidance on every request.
 - **API routes** for users (`/api/users`), chat handling (`/api/chat`), and progress updates (`/api/progress`).
+- **Profile dashboard** at `/profile` with JWT auth, Prisma ORM, stats/achievements/activity feeds, and follower/following lists backed by a SQLite database.
 
 ## Getting started
 ```bash
 npm install
+npx prisma generate
+npx prisma migrate dev --name init_auth_profile
 npm run dev
 # open http://localhost:3000 (or set PORT to override)
 ```
 
 ### Environment
 Copy `env.example` to `.env.local` and set `GEMINI_API_KEY` (or `GOOGLE_API_KEY`). Without a key, the chat gracefully falls back to an on-device tutoring message, but real generations require a key.
+
+Auth/profile env:
+- `AUTH_SECRET` – strong random string for JWT signing
+- `DATABASE_URL` – e.g. `file:./prisma/dev.db` for local SQLite
 
 ### Data
 The first request creates `data/learning.db` with three tables:

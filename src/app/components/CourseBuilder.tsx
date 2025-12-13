@@ -124,6 +124,39 @@ interface CourseBuilderProps {
   onToggleDarkMode: () => void;
 }
 
+type FlowStepKey = 'describe' | 'pace' | 'generate' | 'review';
+
+const FLOW_STEPS: Array<{ key: FlowStepKey; title: string; helper: string }> = [
+  { key: 'describe', title: 'Describe the goal', helper: 'Topic + audience + focus' },
+  { key: 'pace', title: 'Tune pacing', helper: 'Duration + videos per topic' },
+  { key: 'generate', title: 'Generate the path', helper: 'AI builds modules and clips' },
+  { key: 'review', title: 'Review & share', helper: 'Open modules, export JSON' }
+];
+
+const QUICK_STARTERS = [
+  {
+    label: 'AI product sprint',
+    topic: 'Ship a GenAI product with Next.js + Gemini',
+    difficulty: 'intermediate' as const,
+    duration: '3 weeks',
+    note: 'Weekly build cadence'
+  },
+  {
+    label: 'Data viz ramp',
+    topic: 'Data visualization with D3 + storytelling',
+    difficulty: 'beginner' as const,
+    duration: '4 weeks',
+    note: 'Hands-on charts and critiques'
+  },
+  {
+    label: 'Backend deep dive',
+    topic: 'Scalable backend systems with Postgres and queues',
+    difficulty: 'advanced' as const,
+    duration: '6 weeks',
+    note: 'Systems, tradeoffs, runbooks'
+  }
+];
+
 export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBuilderProps) {
   const theme = isDarkMode ? DARK_THEME : LIGHT_THEME;
   const [formData, setFormData] = useState<CourseGenerationRequest>({
@@ -162,6 +195,18 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
     () => Boolean(featuredVideos?.popular || featuredVideos?.topRated || aggregatedCourseVideos.length),
     [featuredVideos, aggregatedCourseVideos]
   );
+  const currentFlowStep = useMemo(() => {
+    if (course) return 3;
+    if (statusState === 'loading') return 2;
+    if (formData.topic.trim()) return 1;
+    return 0;
+  }, [course, statusState, formData.topic]);
+  const stepState = (index: number) => {
+    if (index < currentFlowStep) return 'done';
+    if (index === currentFlowStep) return 'active';
+    return 'pending';
+  };
+  const canGenerate = Boolean(formData.topic.trim()) && !loading;
 
   useEffect(
     () => () => {
@@ -206,6 +251,17 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
       }
       return next;
     });
+  };
+
+  const applyStarter = (starter: (typeof QUICK_STARTERS)[number]) => {
+    setFormData((prev) => ({
+      ...prev,
+      topic: starter.topic,
+      difficulty: starter.difficulty,
+      duration: starter.duration
+    }));
+    setDurationInput(starter.duration);
+    setError(null);
   };
 
   const renderStatusBadge = () => (
@@ -603,12 +659,93 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
         </p>
       </div>
 
+      <div className={`grid gap-3 md:grid-cols-4 rounded-3xl border p-4 transition-colors duration-300 ${
+        isDarkMode ? 'bg-[#1f1410]/80 border-[#3a2f2a]' : 'bg-white/80 border-[#f2e7d9]'
+      }`}>
+        {FLOW_STEPS.map((step, index) => {
+          const state = stepState(index);
+          const isActive = state === 'active';
+          const isDone = state === 'done';
+          return (
+            <div
+              key={step.key}
+              className={`rounded-2xl border p-3 h-full transition-all duration-300 ${
+                isDarkMode 
+                  ? 'border-[#3a2f2a] bg-[#1f1410]' 
+                  : 'border-[#f2e7d9] bg-white'
+              } ${isActive ? 'shadow-[0_15px_40px_rgba(194,79,99,0.2)] scale-[1.01]' : ''}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-[0.65rem] uppercase tracking-[0.25em] font-semibold ${
+                  isDarkMode ? 'text-[#c9a89a]' : 'text-[#a95757]'
+                }`}>Step {index + 1}</span>
+                <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                  isDone 
+                    ? isDarkMode ? 'bg-[#203a30] text-[#86efac]' : 'bg-[#e3ffe9] text-[#1d5c34]'
+                    : isActive 
+                      ? isDarkMode ? 'bg-[#2a1f1a] text-[#ff8ab6]' : 'bg-[#fff5ef] text-[#a95757]'
+                      : isDarkMode ? 'bg-[#1f1410] text-[#3a2f2a]' : 'bg-[#f7f0e9] text-[#c1b6a4]'
+                }`}>
+                  {isDone ? '✓' : index + 1}
+                </span>
+              </div>
+              <p className={`mt-2 text-sm font-semibold ${isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'}`}>
+                {step.title}
+              </p>
+              <p className={`mt-1 text-xs ${isDarkMode ? 'text-[#b8998a]' : 'text-[#5b4743]'}`}>
+                {step.helper}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
       <div className={`rounded-3xl border shadow-xl p-6 space-y-6 transition-colors duration-300 ${theme.card}`}>
         <div className="flex flex-col gap-3">
           <div>
             <p className={`text-xs uppercase tracking-[0.4em] transition-colors duration-300 ${theme.textLight}`}>Configuration</p>
             <h2 className={`${headlineFont.className} text-2xl transition-colors duration-300 ${theme.text}`}>Course Parameters</h2>
           </div>
+          <p className={`text-sm transition-colors duration-300 ${theme.textMuted}`}>
+            Set a goal, pacing, and media preferences. We’ll keep your last run in this tab so you can edit, re-run, and export.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {QUICK_STARTERS.map((starter) => {
+            const isSelected =
+              formData.topic === starter.topic &&
+              formData.duration === starter.duration &&
+              formData.difficulty === starter.difficulty;
+            return (
+              <button
+                key={starter.label}
+                type="button"
+                onClick={() => applyStarter(starter)}
+                className={`group rounded-2xl border p-4 text-left transition-all duration-300 ${
+                  isDarkMode
+                    ? 'border-[#3a2f2a] bg-[#1f1410] hover:border-[#c24f63]/40 hover:-translate-y-0.5'
+                    : 'border-[#f2e7d9] bg-white hover:border-[#a95757]/40 hover:-translate-y-0.5'
+                } ${isSelected ? (isDarkMode ? 'ring-1 ring-[#c24f63]' : 'ring-1 ring-[#a95757]') : ''}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`text-sm font-semibold transition-colors duration-300 ${theme.text}`}>{starter.label}</span>
+                  <span className={`rounded-full px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-wide ${
+                    isDarkMode ? 'bg-[#2a1f1a] text-[#ff8ab6]' : 'bg-[#fff5ef] text-[#a95757]'
+                  }`}>
+                    {starter.difficulty}
+                  </span>
+                </div>
+                <p className={`mt-2 text-sm transition-colors duration-300 ${theme.textMuted}`}>{starter.topic}</p>
+                <div className="mt-3 flex items-center justify-between text-xs">
+                  <span className={isDarkMode ? 'text-[#c9a89a]' : 'text-[#5b4743]'}>{starter.note}</span>
+                  <span className={isDarkMode ? 'text-[#ff8ab6]' : 'text-[#a95757]'}>
+                    {starter.duration}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -622,6 +759,9 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
               placeholder="e.g., GenAI Product Design"
               className={`mt-1 w-full rounded-2xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c24f63]/30 transition-colors duration-300 ${theme.input} ${theme.text} placeholder:${theme.textMuted.replace('text-', 'text-')}`}
             />
+            <span className={`mt-1 block text-xs transition-colors duration-300 ${theme.textMuted}`}>
+              Add a target audience or desired outcome for tighter modules (e.g., “for PM interviews”).
+            </span>
           </label>
           <label className={`text-sm transition-colors duration-300 ${theme.text}`}>
             Difficulty
@@ -635,6 +775,9 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
               <option value="intermediate">Intermediate</option>
               <option value="advanced">Advanced</option>
             </select>
+            <span className={`mt-1 block text-xs transition-colors duration-300 ${theme.textMuted}`}>
+              Tone, pacing, and checkpoints adjust with this.
+            </span>
           </label>
           <label className={`text-sm md:col-span-2 transition-colors duration-300 ${theme.text}`}>
             <div className="flex items-center justify-between mb-2">
@@ -710,7 +853,7 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
           </div>
           <button
             onClick={generateCourse}
-            disabled={loading}
+            disabled={!canGenerate}
             className={`rounded-full px-6 py-2.5 text-sm font-semibold tracking-wide disabled:opacity-50 transition-colors duration-300 ${theme.button}`}
           >
             {loading ? (
@@ -722,11 +865,16 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
                 Generating
               </span>
             ) : (
-              'Generate course'
+              'Generate learning path'
             )}
           </button>
         </div>
 
+        {!formData.topic.trim() && !loading && (
+          <p className={`text-xs transition-colors duration-300 ${theme.textMuted}`}>
+            Add a topic above to unlock generation.
+          </p>
+        )}
         {error && <p className={`text-sm ${isDarkMode ? 'text-[#ff8ab6]' : 'text-red-500'}`}>{error}</p>}
       </div>
 

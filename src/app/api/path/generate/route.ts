@@ -137,17 +137,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        jobId: job.id,
         traceId: job.traceId,
+        jobId: job.id,
         message: 'Course generation started'
       },
       { status: 202 }
     );
   } catch (error: any) {
-    console.error('POST /api/path/generate error', error);
+    // ALWAYS return JSON, even on unexpected errors
+    console.error('[POST /api/path/generate] Error:', {
+      traceId,
+      error: error.message,
+      stack: error.stack
+    });
+    
     return NextResponse.json(
       {
         success: false,
+        traceId,
         error: {
           code: ErrorCode.JOB_RUNNER_FAILURE,
           message: error.message || 'Failed to start course generation',

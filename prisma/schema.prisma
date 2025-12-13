@@ -1,0 +1,129 @@
+// This is your Prisma schema file for CREO
+// For reference - actual implementation uses better-sqlite3
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../data/learning.db"
+}
+
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  email       String?  @unique
+  subjects    String   @default("[]") // JSON array
+  goals       String   @default("")
+  learningStyle String @default("default") // default | examples | intuition-first
+  attentionSpan String @default("medium") // short | medium | long
+  pastStruggles String @default("[]") // JSON array
+  progressNotes String @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  preferences UserPreferences?
+  messages    Message[]
+  topicProgress TopicProgress[]
+  userStats   UserStats?
+  attempts    Attempt[]
+  questProgress QuestProgress[]
+
+  @@map("users")
+}
+
+model UserPreferences {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  dailyTimeBudget  Int      @default(30) // minutes
+  learningPace     String   @default("balanced") // slow | balanced | fast
+  remindersEnabled Boolean  @default(true)
+  timezone         String   @default("UTC")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model Message {
+  id              String   @id @default(uuid())
+  userId          String
+  role            String   // user | assistant
+  content         String
+  topic           String?
+  learningMode    Boolean  @default(false)
+  sentiment       String   @default("neutral")
+  frustrationScore Float   @default(0)
+  metadata        String?  // JSON
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model TopicProgress {
+  id         String   @id @default(uuid())
+  userId     String
+  topic      String
+  confidence Float    @default(0.5)
+  lastReview DateTime
+  reviewCount Int     @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topic])
+  @@map("topic_progress")
+}
+
+model UserStats {
+  userId        String   @id
+  xp            Int      @default(0)
+  level         Int      @default(1)
+  streakCount   Int      @default(0)
+  lastActive    DateTime
+  lastEarnedAt  DateTime?
+  hearts        Int      @default(5)
+  maxHearts     Int      @default(5)
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_stats")
+}
+
+model Attempt {
+  id         String   @id @default(uuid())
+  userId     String
+  lessonId   String
+  stepKey    String?
+  correct    Boolean
+  deltaXp    Int      @default(0)
+  heartDelta Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("attempts")
+}
+
+model QuestProgress {
+  questId     String
+  userId      String
+  progress    Int      @default(0)
+  completedAt DateTime?
+  claimed     Boolean  @default(false)
+  updatedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([questId, userId])
+  @@map("quest_progress")
+}

@@ -119,6 +119,49 @@ const toStudySlug = (value: string) =>
 
 const buildStudyLink = (value: string) => `https://discord.gg/${toStudySlug(value).slice(0, 32)}`;
 
+// Transform new API course data to match existing Course interface
+const transformCourseData = (apiCourse: any, requestId: string): Course => {
+  return {
+    id: apiCourse.id,
+    title: `${apiCourse.topic} - ${apiCourse.level}`,
+    description: `A comprehensive course on ${apiCourse.topic} designed for ${apiCourse.level} learners.`,
+    difficulty: apiCourse.level,
+    duration: `${Math.ceil((apiCourse.timePerDay * 7 * 4) / 60)} hours`,
+    prerequisites: [],
+    learningOutcomes: [],
+    requestId: requestId,
+    modules: apiCourse.modules.map((mod: any) => ({
+      id: mod.id,
+      moduleNumber: mod.order,
+      title: mod.title,
+      description: mod.description,
+      learningObjectives: JSON.parse(mod.outcomes || '[]'),
+      estimatedDuration: `${mod.lessons?.length || 4} lessons`,
+      topics: [{
+        title: mod.title,
+        description: mod.description,
+        contentPoints: JSON.parse(mod.outcomes || '[]'),
+        videos: (mod.resources || []).map((res: any) => ({
+          id: res.id,
+          title: res.title,
+          url: res.url,
+          thumbnailUrl: res.thumbnailUrl || '',
+          duration: res.durationSeconds ? `${Math.floor(res.durationSeconds / 60)}:${(res.durationSeconds % 60).toString().padStart(2, '0')}` : '10:00',
+          channel: res.channel || 'Unknown',
+          views: '0',
+          uploadDate: 'Recent'
+        }))
+      }],
+      assessment: {
+        quizTitle: `${mod.title} Quiz`,
+        quizQuestions: (mod.quizzes?.[0]?.questions || []).map((q: any) => q.question),
+        problemSetTitle: `${mod.title} Practice`,
+        problemPrompts: []
+      }
+    }))
+  };
+};
+
 interface CourseBuilderProps {
   isDarkMode: boolean;
   onToggleDarkMode: () => void;

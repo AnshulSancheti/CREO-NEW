@@ -10,6 +10,7 @@ import { Course } from '@/app/types/course';
 import Waves from '@/app/components/Waves';
 import FloatingElement from '@/app/components/FloatingElement';
 import { HERO_FLOATING_ELEMENTS } from '@/app/config/heroFloatingElements';
+import LandingChat from '@/app/components/LandingChat';
 
 const headlineFont = Playfair_Display({ subsets: ['latin'], weight: ['600', '700', '900'] });
 const bodyFont = Space_Grotesk({ subsets: ['latin'], weight: ['400', '500', '600'] });
@@ -228,6 +229,11 @@ export default function Home() {
 
   return (
     <>
+      {/* Floating chat box on landing - bottom left */}
+      <div className="fixed bottom-6 left-6 z-50 w-[360px] max-w-[90vw]">
+        <LandingChat />
+      </div>
+
       <AnimatePresence>
         {showIntro && showIntro !== null && (
           <motion.div
@@ -395,6 +401,16 @@ export default function Home() {
                   }`}
                 >
                   Course Builder
+                </Link>
+                <Link
+                  href="/tutor"
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    isDarkMode 
+                      ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
+                      : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
+                  }`}
+                >
+                  Learning Coach
                 </Link>
                 <Link
                   href="/api-test"
@@ -769,6 +785,35 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </section>
+
+          {/* Inline Tutor */}
+          <section className={`grid gap-6 lg:grid-cols-2 items-start rounded-[36px] border p-8 transition-colors duration-300 ${
+            isDarkMode
+              ? 'border-[#3a2f2a] bg-[#1f1410]'
+              : 'border-[#f2e1d8] bg-white'
+          }`}>
+            <div className="space-y-3">
+              <p className={`text-xs uppercase tracking-[0.5em] ${
+                isDarkMode ? 'text-[#c9a89a]' : 'text-[#b37871]'
+              }`}>Stuck? Try Learning Mode</p>
+              <h3 className={`${headlineFont.className} text-3xl ${
+                isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
+              }`}>Talk to the coach right here</h3>
+              <p className={`text-sm max-w-xl ${
+                isDarkMode ? 'text-[#b8998a]' : 'text-[#5b4743]'
+              }`}>
+                Type your blocker. The coach detects frustration or repetition and switches to a slower, hint-first mode.
+              </p>
+              <ul className={`grid gap-2 text-sm ${
+                isDarkMode ? 'text-[#c9a89a]' : 'text-[#5b4743]'
+              }`}>
+                <li>• Quick controls: ask for a hint or simpler explanation.</li>
+                <li>• Tracks topic confidence and repeats weak spots.</li>
+                <li>• Uses your profile to adapt tone and pacing.</li>
+              </ul>
+            </div>
+            <LandingChat />
           </section>
 
           {/* CTA */}

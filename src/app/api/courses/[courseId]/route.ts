@@ -13,6 +13,8 @@ type Params = {
 };
 
 export async function GET(request: NextRequest, context: Params) {
+  const traceId = `trace_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  
   try {
     const { courseId } = await context.params;
 

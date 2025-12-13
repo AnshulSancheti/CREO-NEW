@@ -46,6 +46,7 @@ export async function GET(request: NextRequest, context: Params) {
       return NextResponse.json(
         {
           success: false,
+          traceId,
           error: {
             code: ErrorCode.COURSE_NOT_FOUND,
             message: 'Course not found',

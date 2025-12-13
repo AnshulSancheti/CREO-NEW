@@ -399,14 +399,19 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
         await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
         
         const statusResponse = await fetch(`/api/jobs/${jobId}`);
-        const statusData = await statusResponse.json();
+        const statusResult = await safeJson(statusResponse, `/api/jobs/${jobId}`);
         
-        if (!statusResponse.ok || !statusData.success) {
-          throw new Error('Failed to check job status');
+        if (!statusResult.ok || !statusResult.data?.success) {
+          console.error('[Course Generation] Status check failed:', {
+            status: statusResult.status,
+            traceId: statusResult.traceId,
+            jobId
+          });
+          throw new Error(statusResult.errorMessage || 'Failed to check job status');
         }
         
-        const { status, progressPercent, currentStage } = statusData.data;
-        console.log(`[${idempotencyKey}] Progress: ${progressPercent}% - ${currentStage}`);
+        const { status, progressPercent, currentStage } = statusResult.data.data;
+        console.log(`[${idempotencyKey}] Progress: ${progressPercent}% - ${currentStage} [traceId: ${statusResult.traceId || startTraceId}]`);
         
         if (status === 'succeeded') {
           // Step 3: Fetch the generated course

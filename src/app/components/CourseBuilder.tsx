@@ -440,8 +440,14 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
         } else if (status === 'failed') {
           pollingRef.current = false;
           currentJobId.current = null;
-          const errorMsg = statusData.data.error?.message || 'Course generation failed';
-          throw new Error(errorMsg);
+          const errorMsg = statusResult.data.data.error?.message || 'Course generation failed';
+          const errorTraceId = statusResult.traceId;
+          console.error('[Course Generation] Job failed:', {
+            traceId: errorTraceId,
+            errorCode: statusResult.data.data.error?.code,
+            errorMessage: errorMsg
+          });
+          throw new Error(`${errorMsg} [traceId: ${errorTraceId}]`);
         }
         
         attempts++;

@@ -8,8 +8,8 @@ import {
   upsertTopicProgress,
   listTopicProgress
 } from '@/lib/db';
-import { getGeminiApiKey } from '@/lib/apiKeys';
-import { callGeminiWithRetry } from '@/app/utils/geminiClient';
+import { getUniversalApiKey } from '@/lib/apiKeys';
+import { callLLMWithRetry } from '@/app/utils/llmClient';
 import { safeJsonParse } from '@/app/utils/jsonHelpers';
 
 type ChatRequestBody = {
@@ -98,11 +98,12 @@ export async function POST(request: NextRequest) {
     });
 
     let assistantText = '';
-    let modelUsed = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    let modelUsed = '';
     let modelError: string | null = null;
+    let providerUsed = 'gemini';
 
     try {
-      const apiKey = await getGeminiApiKey();
+      const apiKey = await getUniversalApiKey();
       const requestBody = {
         contents: [
           {
@@ -115,10 +116,14 @@ export async function POST(request: NextRequest) {
         }
       };
 
-      const { response, errorMessage } = await callGeminiWithRetry({
+      // Use single Gemini model for optimal performance
+      const GEMINI_MODEL = 'gemini-2.0-flash-exp';
+      const { response, errorMessage, status } = await callLLMWithRetry({
         apiKey,
-        model: modelUsed,
-        body: requestBody
+        provider: 'gemini',
+        model: GEMINI_MODEL,
+        body: requestBody,
+        maxRetries: 2
       });
 
       if (response) {
@@ -131,18 +136,21 @@ export async function POST(request: NextRequest) {
             parts.map((part) => part.text || '').join('') ||
             candidate?.output_text ||
             '';
-          modelUsed = parsed.data.model ?? modelUsed;
+          modelUsed = GEMINI_MODEL;
+          providerUsed = 'gemini';
+          console.log(`✓ Success with gemini/${GEMINI_MODEL}`);
         } else {
-          modelError = errorMessage || 'Invalid Gemini response';
+          console.warn(`✗ gemini/${GEMINI_MODEL} failed: ${errorMessage || status}`);
+          modelError = errorMessage || `gemini/${GEMINI_MODEL} failed`;
         }
       } else {
-        modelError = errorMessage || 'No Gemini response';
+        modelError = errorMessage || 'LLM call failed';
       }
     } catch (error) {
       modelError =
         error instanceof Error
           ? error.message
-          : 'Gemini key missing or model call failed';
+          : 'API key missing or model call failed';
     }
 
     if (!assistantText) {
@@ -166,6 +174,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         prompt,
         modelUsed,
+        providerUsed,
         modelError
       }
     });

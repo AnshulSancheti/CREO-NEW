@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { Course, CourseGenerationRequest, CourseGenerationResponse, CourseModule, CourseTopic, Video } from '@/app/types/course';
 import { safeJsonParse } from '@/app/utils/jsonHelpers';
-import { callGeminiWithRetry } from '@/app/utils/geminiClient';
+import { callLLMWithRetry } from '@/app/utils/llmClient';
 import { fetchVideosForTopics, fetchFeaturedVideos, searchYouTubeVideos } from '@/app/lib/youtube';
-import { getGeminiApiKey } from '@/lib/apiKeys';
+import { getUniversalApiKey } from '@/lib/apiKeys';
 
 const QUIZ_MODEL = 'gemini-2.0-flash-exp';
 const QUIZ_GENERATION_CONFIG = {
@@ -18,7 +18,7 @@ const QUIZ_GENERATION_CONFIG = {
  */
 function generateCoursePrompt(request: CourseGenerationRequest): string {
   const { topic, difficulty, duration, targetAudience, prerequisites, focusAreas } = request;
-  
+
   return `Create a comprehensive online course about "${topic}".
 
 Requirements:
@@ -428,7 +428,7 @@ function buildFallbackCourseData(request: CourseGenerationRequest) {
  * Process and enrich course with videos
  */
 async function enrichCourseWithVideos(
-  courseData: any, 
+  courseData: any,
   includeVideos: boolean,
   videosPerTopic: number
 ): Promise<Course> {
@@ -455,28 +455,28 @@ async function enrichCourseWithVideos(
   if (Array.isArray(courseData.modules)) {
     for (const moduleData of courseData.modules) {
       const moduleId = `module_${courseId}_${moduleData.moduleNumber || Math.random().toString(36).substring(7)}`;
-      
+
       const module: CourseModule = {
         id: moduleId,
         moduleNumber: moduleData.moduleNumber || course.modules.length + 1,
         title: moduleData.title || `Module ${course.modules.length + 1}`,
         description: moduleData.description || '',
-        learningObjectives: Array.isArray(moduleData.learningObjectives) 
-          ? moduleData.learningObjectives 
+        learningObjectives: Array.isArray(moduleData.learningObjectives)
+          ? moduleData.learningObjectives
           : [],
         estimatedDuration: moduleData.estimatedDuration || '1 week',
         topics: [],
         assessment: moduleData.assessment
           ? {
-              quizTitle: moduleData.assessment.quizTitle || 'Quick check-in',
-              quizQuestions: Array.isArray(moduleData.assessment.quizQuestions)
-                ? moduleData.assessment.quizQuestions
-                : [],
-              problemSetTitle: moduleData.assessment.problemSetTitle || 'Practice set',
-              problemPrompts: Array.isArray(moduleData.assessment.problemPrompts)
-                ? moduleData.assessment.problemPrompts
-                : []
-            }
+            quizTitle: moduleData.assessment.quizTitle || 'Quick check-in',
+            quizQuestions: Array.isArray(moduleData.assessment.quizQuestions)
+              ? moduleData.assessment.quizQuestions
+              : [],
+            problemSetTitle: moduleData.assessment.problemSetTitle || 'Practice set',
+            problemPrompts: Array.isArray(moduleData.assessment.problemPrompts)
+              ? moduleData.assessment.problemPrompts
+              : []
+          }
           : undefined
       };
 
@@ -484,16 +484,16 @@ async function enrichCourseWithVideos(
       if (Array.isArray(moduleData.topics)) {
         // Collect all search queries for batch video fetching
         const topicSearchQueries: Map<string, string> = new Map();
-        
+
         for (const topicData of moduleData.topics) {
           const topicId = `topic_${moduleId}_${topicData.topicNumber || Math.random().toString(36).substring(7)}`;
-          
+
           // Build search query from keywords or title
           let searchQuery = topicData.title || '';
           if (Array.isArray(topicData.searchKeywords) && topicData.searchKeywords.length > 0) {
             searchQuery = topicData.searchKeywords.join(' ');
           }
-          
+
           topicSearchQueries.set(topicId, searchQuery);
         }
 
@@ -518,7 +518,7 @@ async function enrichCourseWithVideos(
         for (const topicData of moduleData.topics) {
           const topicId = `topic_${moduleId}_${topicData.topicNumber || Math.random().toString(36).substring(7)}`;
           const searchQuery = topicSearchQueries.get(topicId) || '';
-          
+
           let topicVideos = includeVideos ? (videoResults.get(topicId) || []) : [];
 
           if (includeVideos && topicVideos.length === 0) {
@@ -617,8 +617,9 @@ Each question should reference the ideas above and stay under 25 words.`;
     generationConfig: QUIZ_GENERATION_CONFIG
   };
 
-  const { response } = await callGeminiWithRetry({
+  const { response } = await callLLMWithRetry({
     apiKey,
+    provider: 'gemini',
     model: QUIZ_MODEL,
     body: payload,
     maxRetries: 2
@@ -638,10 +639,11 @@ Each question should reference the ideas above and stay under 25 words.`;
 }
 
 async function enrichModulesWithQuizzes(modules: CourseModule[], apiKey: string) {
-  for (const module of modules) {
+  // Generate quizzes in parallel for all modules
+  const quizPromises = modules.map(async (module) => {
     try {
       const quizQuestions = await generateQuizQuestionsForModule(module, apiKey);
-      if (!quizQuestions.length) continue;
+      if (!quizQuestions.length) return;
 
       if (!module.assessment) {
         module.assessment = {
@@ -657,17 +659,19 @@ async function enrichModulesWithQuizzes(modules: CourseModule[], apiKey: string)
     } catch (error) {
       console.error(`Failed to fetch quiz for module ${module.title}`, error);
     }
-  }
+  });
+
+  await Promise.all(quizPromises);
 }
 
 export async function POST(request: Request) {
   const startTime = Date.now();
-  
+
   try {
     // Parse request body
     const body = await request.text();
     const parseResult = safeJsonParse<CourseGenerationRequest>(body);
-    
+
     if (!parseResult.success) {
       return NextResponse.json<CourseGenerationResponse>(
         {
@@ -680,9 +684,10 @@ export async function POST(request: Request) {
 
     const courseRequest = parseResult.data!;
     const requestId = (courseRequest as any).requestId || `gen_${startTime}`;
-    
-    console.log(`[${requestId}] Request: "${courseRequest.topic}" (${courseRequest.difficulty}, ${courseRequest.duration})`);
-    
+    const preferredProvider = (courseRequest as any).preferredProvider as string | undefined;
+
+    console.log(`[${requestId}] Request: "${courseRequest.topic}" (${courseRequest.difficulty}, ${courseRequest.duration})${preferredProvider ? ` [Provider: ${preferredProvider}]` : ''}`);
+
     // Validate required fields
     if (!courseRequest.topic) {
       return NextResponse.json<CourseGenerationResponse>(
@@ -695,12 +700,12 @@ export async function POST(request: Request) {
     }
 
     // Get API key
-    const geminiApiKey = await getGeminiApiKey();
-    if (!geminiApiKey) {
+    const apiKey = await getUniversalApiKey();
+    if (!apiKey) {
       return NextResponse.json<CourseGenerationResponse>(
         {
           success: false,
-          error: 'Gemini API key not configured'
+          error: 'API key not configured'
         },
         { status: 500 }
       );
@@ -708,20 +713,16 @@ export async function POST(request: Request) {
 
     // Generate course structure prompt
     const prompt = generateCoursePrompt(courseRequest);
-    
-    // Try different models if one fails, including latest 2.x versions
-    // Priority order: newest/best models first
-    const models = [
-      'gemini-2.0-flash-exp',        // Latest 2.0 Flash experimental
-      'gemini-exp-1206',              // Latest experimental model (Dec 2024)
-      'gemini-exp-1121',              // Previous experimental model
-      'gemini-1.5-flash-002',         // Latest stable Flash
-      'gemini-1.5-flash',             // Standard Flash
-      'gemini-1.5-pro-002',           // Latest stable Pro
-      'gemini-1.5-pro',               // Standard Pro
-      'gemini-2.0-pro-exp'            // 2.0 Pro experimental (if available)
+
+    // Use single Gemini model for optimal performance
+    const GEMINI_MODEL = 'gemini-2.0-flash-exp';
+    const modelProviders: Array<{ provider: 'gemini' | 'openai' | 'claude', models: string[] }> = [
+      {
+        provider: 'gemini',
+        models: [GEMINI_MODEL]
+      }
     ];
-    
+
     const generationPayload = {
       contents: [
         {
@@ -734,71 +735,77 @@ export async function POST(request: Request) {
       ],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 8000,
+        maxOutputTokens: 4096,
         topP: 0.95,
         topK: 40
       }
     };
-    
-    let geminiResponse: Response | null = null;
+
+    let llmResponse: Response | null = null;
     let lastError: string = '';
-    
-    // Helper function to wait between model attempts
+    let modelUsed = '';
+    let providerUsed = '';
+
+    // Helper function to wait between attempts
     const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-    
-    for (let i = 0; i < models.length; i += 1) {
-      const model = models[i];
-      console.log(`Trying model: ${model}`);
-      
-      const { response, errorMessage, status, wasRateLimited } = await callGeminiWithRetry({
-        apiKey: geminiApiKey,
-        model,
-        body: generationPayload,
-        maxRetries: 3
-      });
-      
-      if (response) {
-        geminiResponse = response;
-        console.log(`Success with model: ${model}`);
+
+    for (const { provider, models } of modelProviders) {
+      for (const model of models) {
+        console.log(`Trying ${provider}/${model}...`);
+
+        const { response, errorMessage, status, wasRateLimited } = await callLLMWithRetry({
+          apiKey,
+          provider,
+          model,
+          body: generationPayload,
+          maxRetries: 2
+        });
+
+        if (response) {
+          llmResponse = response;
+          modelUsed = model;
+          providerUsed = provider;
+          console.log(`✓ Success with ${provider}/${model}`);
+          break;
+        }
+
+        lastError = errorMessage || `${provider}/${model} failed with status ${status}`;
+        console.error(`✗ ${lastError}`);
+
+        let shouldTryNextModel = false;
+
+        if (status === 404) {
+          console.warn(`Model ${model} not available. Trying next option...`);
+          shouldTryNextModel = true;
+        } else if ((status === 429 || status === 503) && wasRateLimited) {
+          console.warn(`Rate limit persisted for ${model}. Trying next model...`);
+          shouldTryNextModel = true;
+        }
+
+        if (shouldTryNextModel) {
+          await wait(500);
+          continue;
+        }
+
+        // For other status codes, try next provider
         break;
       }
-      
-      lastError = errorMessage || `Model ${model} failed with status ${status}`;
-      console.error(lastError);
-      
-      let shouldTryNextModel = false;
-      
-      if (status === 404) {
-        console.warn(`Model ${model} not available. Trying next option...`);
-        shouldTryNextModel = true;
-      } else if ((status === 429 || status === 503) && wasRateLimited) {
-        console.warn(`Rate limit persisted for model ${model}. Trying next model...`);
-        shouldTryNextModel = true;
-      }
-      
-      if (shouldTryNextModel) {
-        if (i < models.length - 1) {
-          await wait(500);
-        }
-        continue;
-      }
-      
-      // For other status codes, stop trying additional models
-      break;
+
+      if (llmResponse) break;
     }
 
     let courseData: any = null;
 
-    if (!geminiResponse || !geminiResponse.ok) {
-      console.warn(`[${requestId}] Gemini failed, using fallback (${lastError})`);
+    if (!llmResponse || !llmResponse.ok) {
+      console.warn(`[${requestId}] All LLM providers failed, using fallback (${lastError})`);
       courseData = buildFallbackCourseData(courseRequest);
     } else {
-      const geminiData = await geminiResponse.json();
-      
+      const llmData = await llmResponse.json();
+
       // Extract response text
       let responseText = '';
-      if (geminiData.candidates && geminiData.candidates[0]) {
-        const candidate = geminiData.candidates[0];
+      if (llmData.candidates && llmData.candidates[0]) {
+        const candidate = llmData.candidates[0];
         if (candidate.content && candidate.content.parts) {
           responseText = candidate.content.parts
             .map((part: any) => part.text || '')
@@ -837,7 +844,7 @@ export async function POST(request: Request) {
         courseRequest.videosPerTopic || 3
       );
     }
-    await enrichModulesWithQuizzes(course.modules, geminiApiKey);
+    await enrichModulesWithQuizzes(course.modules, apiKey);
 
     // Calculate total videos fetched
     let totalVideos = 0;

@@ -25,20 +25,26 @@ This project provides a fully functional Google Gemini API integration with robu
 npm install
 ```
 
-### 2. Get Your Gemini API Key
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Sign in with your Google account
-3. Click "Create API Key"
-4. Copy the generated API key
+### 2. Get Your Universal API Key
+
+You'll need a universal LLM API key that provides access to multiple AI providers (Gemini, OpenAI, Claude).
+
+1. Obtain your `EMERGENT_API_KEY` from your API provider dashboard
+2. This single key gives you access to all supported LLM models
+
+> **Note**: If you don't have a universal API key yet, contact your administrator or API provider.
 
 ### 3. Configure Environment Variables
+
 ```bash
 # Copy the example environment file
 cp env.example .env.local
 
 # Edit .env.local and add your API key
-GEMINI_API_KEY=your-actual-api-key-here
+EMERGENT_API_KEY=your-actual-api-key-here
 ```
+
+**Quick Setup**: See [QUICKSTART.md](./QUICKSTART.md) for step-by-step instructions.
 
 ### 4. Run the Development Server
 ```bash

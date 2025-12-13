@@ -18,6 +18,7 @@ import {
   TutorMessage,
   TutorUserProfile
 } from '@/app/types/tutor';
+import ModelSelector, { type LLMProvider } from '@/app/components/ModelSelector';
 
 const gradient = 'bg-gradient-to-br from-amber-50 via-rose-50 to-emerald-50';
 const panel =
@@ -39,11 +40,10 @@ const MessageBubble = ({ message }: { message: TutorMessage }) => {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
       <div
-        className={`max-w-xl rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-          isUser
+        className={`max-w-xl rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser
             ? 'bg-gradient-to-br from-[#1f120f] to-[#40221c] text-white shadow-lg shadow-rose-200/40'
             : 'bg-white text-[#1f120f] border border-rose-100/60 shadow'
-        }`}
+          }`}
       >
         {message.learningMode && (
           <div className="mb-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-amber-900">
@@ -67,13 +67,12 @@ const ProgressPill = ({ progress }: { progress: TopicProgress }) => {
       </div>
       <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-emerald-50">
         <div
-          className={`h-full rounded-full ${
-            progress.lastStatus === 'struggling'
+          className={`h-full rounded-full ${progress.lastStatus === 'struggling'
               ? 'bg-amber-400'
               : progress.lastStatus === 'improving'
-              ? 'bg-emerald-500'
-              : 'bg-emerald-400'
-          }`}
+                ? 'bg-emerald-500'
+                : 'bg-emerald-400'
+            }`}
           style={{ width: `${Math.max(10, percent)}%` }}
         />
       </div>
@@ -263,11 +262,10 @@ export default function TutorPage() {
             </div>
           </div>
           <div
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${
-              learningMode
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${learningMode
                 ? 'bg-amber-100 text-amber-900 border border-amber-200'
                 : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-            }`}
+              }`}
           >
             {learningMode ? <Turtle className="h-4 w-4" /> : <BoltIcon />}
             {learningMode ? 'Learning Mode Active' : 'Coaching Mode'}
@@ -390,11 +388,10 @@ export default function TutorPage() {
                       }
                       setControls((prev) => ({ ...prev, [action.key]: true }));
                     }}
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                      controls[action.key]
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${controls[action.key]
                         ? 'border-rose-300 bg-rose-100 text-rose-900'
                         : 'border-rose-100 bg-white text-rose-800 hover:border-rose-200'
-                    }`}
+                      }`}
                   >
                     {action.label}
                   </button>

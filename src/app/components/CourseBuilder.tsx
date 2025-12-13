@@ -470,8 +470,10 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
         setSelectedModuleId(data.course.modules[0].id);
       }
     } catch (err) {
-      console.error(`[${requestId}] Error:`, err instanceof Error ? err.message : err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      pollingRef.current = false;
+      currentJobId.current = null;
+      console.error('Course generation error:', err instanceof Error ? err.message : err);
+      setError(err instanceof Error ? err.message : 'An error occurred during course generation');
       setStatusState('idle');
     } finally {
       setLoading(false);

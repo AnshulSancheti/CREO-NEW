@@ -414,9 +414,13 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
           // Transform to match existing Course interface
           const transformedCourse = transformCourseData(courseData.data.course, idempotencyKey);
           setCourse(transformedCourse);
+          pollingRef.current = false;
+          currentJobId.current = null;
           wasSuccessful = true;
           break;
         } else if (status === 'failed') {
+          pollingRef.current = false;
+          currentJobId.current = null;
           const errorMsg = statusData.data.error?.message || 'Course generation failed';
           throw new Error(errorMsg);
         }

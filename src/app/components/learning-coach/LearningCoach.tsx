@@ -62,15 +62,29 @@ export default function LearningCoach() {
   const hydrateUser = async (id: string) => {
     try {
       const res = await fetch(`/api/users?id=${id}`);
-      if (!res.ok) throw new Error('Failed to fetch user');
-      const payload = await res.json();
-      setUserId(id);
-      setProfile(payload.data.profile);
-      setProgress(payload.data.progress ?? []);
-      setMessages(payload.data.history ?? []);
-      setLearningMode(Boolean(payload.data.history?.some((m: CoachMessage) => m.learningMode)));
+      const payload = await res.json().catch(() => ({ success: false }));
+
+      if (payload.success && payload.data?.profile) {
+        setUserId(id);
+        setProfile(payload.data.profile);
+        setProgress(payload.data.progress ?? []);
+        setMessages(payload.data.history ?? []);
+        setLearningMode(Boolean(payload.data.history?.some((m: CoachMessage) => m.learningMode)));
+        setError('');
+      } else {
+        // User not found or error - create new one
+        console.warn('Could not hydrate user, creating new profile');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('creoTutorUserId');
+        }
+        await createUser();
+      }
     } catch (err) {
-      console.error(err);
+      console.warn('Error hydrating user:', err);
+      // Clear stored ID and create new user
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('creoTutorUserId');
+      }
       await createUser();
     }
   };

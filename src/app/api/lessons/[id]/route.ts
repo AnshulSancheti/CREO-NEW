@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getLessonById } from '@/lib/db';
 
 type Params = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(_request: NextRequest, context: Params) {
   try {
     // Next.js 16+ requires awaiting params
-    const { id } = await Promise.resolve(params);
+    const { id } = await context.params;
     const lesson = getLessonById(id);
     if (!lesson) {
       return NextResponse.json({ success: false, error: 'Lesson not found' }, { status: 404 });

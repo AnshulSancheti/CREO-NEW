@@ -138,6 +138,7 @@ const transformCourseData = (apiCourse: any, requestId: string): Course => {
       learningObjectives: typeof mod.outcomes === 'string' ? JSON.parse(mod.outcomes) : mod.outcomes || [],
       estimatedDuration: `${mod.lessons?.length || 4} lessons`,
       topics: [{
+        id: mod.id + '_topic',
         title: mod.title,
         description: mod.description,
         contentPoints: typeof mod.outcomes === 'string' ? JSON.parse(mod.outcomes) : mod.outcomes || [],

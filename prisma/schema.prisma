@@ -30,6 +30,8 @@ model User {
   userStats   UserStats?
   attempts    Attempt[]
   questProgress QuestProgress[]
+  courses     Course[]
+  jobs        Job[]
 
   @@map("users")
 }

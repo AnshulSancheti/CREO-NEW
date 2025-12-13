@@ -333,7 +333,8 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
       return;
     }
 
-    const idempotencyKey = `${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    // Generate a proper UUID for idempotency
+    const idempotencyKey = crypto.randomUUID();
     console.log(`[${idempotencyKey}] Course generation: ${formData.topic} (${formData.difficulty})`);
     
     setLoading(true);

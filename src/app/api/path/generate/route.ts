@@ -34,8 +34,24 @@ export async function POST(request: NextRequest) {
     const input = validationResult.data;
 
     // TODO: Get userId from auth middleware
-    // For now, use a test user or create one
-    const userId = 'test-user-' + randomUUID();
+    // For now, create a test user
+    const testUser = await prisma.user.upsert({
+      where: { id: 'test-user-system' },
+      update: {},
+      create: {
+        id: 'test-user-system',
+        name: 'Test User',
+        subjects: '[]',
+        goals: '',
+        learningStyle: 'default',
+        attentionSpan: 'medium',
+        pastStruggles: '[]',
+        progressNotes: '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
+    const userId = testUser.id;
 
     // Check idempotency
     const existing = await prisma.idempotencyKey.findUnique({

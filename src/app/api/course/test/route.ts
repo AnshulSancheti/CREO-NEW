@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { callGeminiWithRetry } from '@/app/utils/geminiClient';
-import { getGeminiApiKey } from '@/lib/apiKeys';
+import { safeJsonParse } from '@/app/utils/jsonHelpers';
+import { callLLMWithRetry } from '@/app/utils/llmClient';
+import { getUniversalApiKey } from '@/lib/apiKeys';
 
 // Simple test to verify Gemini API is working
 export async function GET() {
   try {
-    const apiKey = await getGeminiApiKey();
-    
+    const apiKey = await getUniversalApiKey();
+
     if (!apiKey) {
       return NextResponse.json({
         success: false,
@@ -18,13 +19,13 @@ export async function GET() {
     const models = [
       'gemini-2.0-flash-exp',
       'gemini-exp-1206',
-      'gemini-exp-1121', 
+      'gemini-exp-1121',
       'gemini-1.5-flash-002',
       'gemini-1.5-flash',
       'gemini-1.5-pro-002',
       'gemini-1.5-pro'
     ];
-    
+
     const payload = {
       contents: [
         {
@@ -40,15 +41,16 @@ export async function GET() {
         maxOutputTokens: 100
       }
     };
-    
+
     for (const model of models) {
-      const { response, errorMessage } = await callGeminiWithRetry({
+      const { response, errorMessage } = await callLLMWithRetry({
         apiKey,
+        provider: 'gemini',
         model,
         body: payload,
         maxRetries: 2
       });
-      
+
       if (!response) {
         console.error(`Model ${model} failed: ${errorMessage || 'Unknown error'}`);
         continue;
@@ -56,7 +58,7 @@ export async function GET() {
 
       const data = await response.json();
       let responseText = '';
-      
+
       if (data.candidates && data.candidates[0]) {
         const candidate = data.candidates[0];
         if (candidate.content && candidate.content.parts) {

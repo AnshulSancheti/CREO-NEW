@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { safeJsonParse, normalizeApiResponse, validateJsonStructure } from '@/app/utils/jsonHelpers';
-import { callGeminiWithRetry } from '@/app/utils/geminiClient';
-import { getGeminiApiKey } from '@/lib/apiKeys';
+import { callLLMWithRetry } from '@/app/utils/llmClient';
+import { getUniversalApiKey } from '@/lib/apiKeys';
 
 // Type definitions for better type safety
 interface RequestBody {
@@ -120,10 +120,10 @@ export async function POST(request: Request) {
   try {
     // Parse request body with error handling
     let body: RequestBody;
-    
+
     try {
       const rawBody = await request.text();
-      
+
       // Check if body is empty
       if (!rawBody) {
         return NextResponse.json<ApiResponse>(
@@ -135,10 +135,10 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      
+
       // Use our safe JSON parser
       const parseResult = safeJsonParse<RequestBody>(rawBody);
-      
+
       if (!parseResult.success) {
         console.error('JSON Parse Error:', parseResult.error);
         return NextResponse.json<ApiResponse>(
@@ -150,9 +150,9 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      
+
       body = parseResult.data!;
-      
+
     } catch (error) {
       console.error('Body reading error:', error);
       return NextResponse.json<ApiResponse>(
@@ -179,8 +179,8 @@ export async function POST(request: Request) {
     }
 
     // Get Gemini API key from environment variables
-    const apiKey = await getGeminiApiKey();
-    
+    const apiKey = await getUniversalApiKey();
+
     if (!apiKey) {
       console.error('Gemini API Key not configured');
       return NextResponse.json<ApiResponse>(
@@ -237,8 +237,9 @@ export async function POST(request: Request) {
       const normalizedModel = candidate.replace(/^models\//, '');
       console.log('Calling Gemini API with model:', normalizedModel);
 
-      const { response, errorMessage, status } = await callGeminiWithRetry({
+      const { response, errorMessage, status } = await callLLMWithRetry({
         apiKey,
+        provider: 'gemini',
         model: normalizedModel,
         body: requestPayload,
         maxRetries: 3
@@ -358,7 +359,7 @@ export async function POST(request: Request) {
 
 // GET method for testing
 export async function GET() {
-  const apiKey = await getGeminiApiKey();
+  const apiKey = await getUniversalApiKey();
   const apiKeyConfigured = !!apiKey;
 
   let modelList: GeminiModelListResult | null = null;
@@ -369,7 +370,7 @@ export async function GET() {
   const availableModels = modelList?.models ?? [];
   const supportedModels = availableModels.map(model => model.name);
   const defaultModel = process.env.GEMINI_MODEL || supportedModels[0] || 'gemini-1.5-flash';
-  
+
   return NextResponse.json<ApiResponse>(
     {
       success: true,

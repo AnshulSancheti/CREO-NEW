@@ -82,18 +82,62 @@ export default function LearningCoach() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(DEFAULT_PROFILE)
       });
-      if (!res.ok) throw new Error('Unable to create profile');
-      const payload = await res.json();
-      const id = payload?.data?.profile?.id as string;
-      setUserId(id);
-      setProfile(payload.data.profile);
-      setProgress(payload.data.progress ?? []);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('creoTutorUserId', id);
+
+      // Always parse JSON response first, even on error
+      const payload = await res.json().catch(() => ({
+        success: false,
+        error: { code: 'PARSE_ERROR', message: 'Invalid response from server' }
+      }));
+
+      // Case A: Success - profile created or returned
+      if (payload.success && payload.data?.profile?.id) {
+        const id = payload.data.profile.id;
+        setUserId(id);
+        setProfile(payload.data.profile);
+        setProgress(payload.data.progress ?? []);
+        
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('creoTutorUserId', id);
+        }
+        
+        // Clear any previous errors
+        setError('');
+        return;
       }
+
+      // Case B: Profile already exists (handled by backend now, but keep for safety)
+      if (payload.error?.code === 'PROFILE_EXISTS' && payload.data?.profile?.id) {
+        const id = payload.data.profile.id;
+        setUserId(id);
+        setProfile(payload.data.profile);
+        setProgress(payload.data.progress ?? []);
+        
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('creoTutorUserId', id);
+        }
+        
+        console.info('Using existing profile:', id);
+        return;
+      }
+
+      // Case C: Validation error - show inline message but don't crash
+      if (payload.error?.code === 'VALIDATION_ERROR') {
+        console.warn('Profile validation failed:', payload.error.message);
+        setError('Please check your profile settings.');
+        // App continues to work without profile
+        return;
+      }
+
+      // Case D: Other errors - log and allow app to continue
+      console.warn('Profile creation issue:', payload.error || 'Unknown error');
+      setError('Coach is running in limited mode.');
+      
+      // Don't throw - allow the app to continue rendering
     } catch (err) {
-      console.error(err);
-      setError('Coach unavailable right now.');
+      // Case D: Network or unexpected error
+      console.warn('Network error during profile creation:', err);
+      setError('Coach is temporarily unavailable.');
+      // App continues without profile - user can still view content
     }
   };
 

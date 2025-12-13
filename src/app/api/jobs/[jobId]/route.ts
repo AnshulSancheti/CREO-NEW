@@ -79,10 +79,17 @@ export async function GET(request: NextRequest, context: Params) {
 
     return NextResponse.json(response, { status: 200 });
   } catch (error: any) {
-    console.error('GET /api/jobs/[jobId] error', error);
+    // ALWAYS return JSON
+    console.error('[GET /api/jobs/[jobId]] Error:', {
+      traceId,
+      error: error.message,
+      stack: error.stack
+    });
+    
     return NextResponse.json(
       {
         success: false,
+        traceId,
         error: {
           code: ErrorCode.JOB_RUNNER_FAILURE,
           message: 'Failed to fetch job status'

@@ -700,12 +700,19 @@ export async function POST(request: Request) {
     }
 
     // Get API key
-    const apiKey = await getUniversalApiKey();
-    if (!apiKey) {
+    let apiKey: string;
+    try {
+      apiKey = await getUniversalApiKey();
+    } catch (keyError) {
+      const message =
+        keyError instanceof Error
+          ? keyError.message
+          : 'Missing EMERGENT_API_KEY in .env.local';
+      console.error('[course/generate]', keyError);
       return NextResponse.json<CourseGenerationResponse>(
         {
           success: false,
-          error: 'API key not configured'
+          error: message
         },
         { status: 500 }
       );
@@ -877,11 +884,12 @@ export async function POST(request: Request) {
     );
 
   } catch (error) {
-    console.error('Course generation error:', error);
+    console.error('[course/generate]', error);
+    const message = error instanceof Error ? error.message : 'Unknown error occurred';
     return NextResponse.json<CourseGenerationResponse>(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: message
       },
       { status: 500 }
     );

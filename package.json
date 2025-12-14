@@ -17,10 +17,10 @@
     "framer-motion": "^12.23.26",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.468.0",
-    "next": "16.0.1",
+    "next": "^16.0.1",
     "openai": "^6.10.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {
@@ -30,9 +30,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
-    "prisma": "5.22.0",
+    "prisma": "^6.0.0",
     "tailwindcss": "^4",
-    "typescript": "^5.9.3",
-    "prisma": "^6.0.0"
+    "typescript": "^5.9.3"
   }
 }

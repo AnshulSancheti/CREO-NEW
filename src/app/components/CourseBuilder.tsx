@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { safeJson } from '@/app/utils/safeJson';
 import {
   Course,
   CourseGenerationRequest,
@@ -164,6 +163,152 @@ const transformCourseData = (apiCourse: any, requestId: string): Course => {
   };
 };
 
+// Lightweight fallback generator so the Course Builder still works when the API or database is unavailable
+const OFFLINE_BLUEPRINTS = [
+  {
+    title: 'Groundwork & Goals',
+    description: 'Frame the topic, why it matters, and what success looks like.',
+    objectives: ['Set intentions', 'Map the landscape', 'Spot quick wins'],
+    checkIn: ['Explain why this topic matters for you', 'List two success criteria'],
+    prompts: ['Write a one-sentence goal', 'Draft a two-week study cadence']
+  },
+  {
+    title: 'Core Concepts',
+    description: 'Build a confident mental model and vocabulary.',
+    objectives: ['Explain the pillars', 'Compare core trade-offs', 'Recognize patterns'],
+    checkIn: ['Define three key terms in your own words', 'Describe a common pitfall'],
+    prompts: ['Summarize a concept in five bullets', 'Sketch a simple diagram']
+  },
+  {
+    title: 'Applied Practice',
+    description: 'Turn concepts into repeatable, hands-on reps.',
+    objectives: ['Ship small artifacts', 'Stress-test understanding', 'Debug issues quickly'],
+    checkIn: ['Share a tiny demo or draft', 'Note one thing you would improve'],
+    prompts: ['Implement a 30-minute micro-project', 'Run a self-review checklist']
+  },
+  {
+    title: 'Project & Review',
+    description: 'Pull everything together, reflect, and plan next steps.',
+    objectives: ['Ship a cohesive project', 'Reflect on gaps', 'Plan the next sprint'],
+    checkIn: ['What worked well?', 'What will you change next time?'],
+    prompts: ['Write a short retro', 'Outline your next three practice reps']
+  }
+];
+
+const OFFLINE_TOPIC_FOCUS = [
+  'Mindset and setup',
+  'Core vocabulary',
+  'Hands-on drill',
+  'System thinking',
+  'Feedback loop',
+  'Project polish'
+];
+
+const FALLBACK_VIDEOS: Video[] = [
+  {
+    id: 'ysz5S6PUM-U',
+    title: 'Learn a topic faster with a 4-part study loop',
+    description: 'Sample video shown when no YouTube clips are available for this topic.',
+    url: 'https://www.youtube.com/watch?v=ysz5S6PUM-U',
+    thumbnailUrl: 'https://img.youtube.com/vi/ysz5S6PUM-U/hqdefault.jpg',
+    duration: '10:00',
+    viewCount: 0,
+    likeCount: 0,
+    channelName: 'Creo Learning',
+    channelId: 'creo-learning',
+    publishedAt: '2024-01-01T00:00:00Z',
+    rating: 0
+  }
+];
+
+const buildOfflineCourse = (request: CourseGenerationRequest): Course => {
+  const topic = request.topic.trim() || 'Custom Learning Path';
+  const difficulty = (request.difficulty || 'intermediate') as Course['difficulty'];
+  const duration = request.duration || '4 weeks';
+  const createdAt = new Date().toISOString();
+  const perModuleDays = Math.max(1, Math.round(parseDurationToDays(duration) / OFFLINE_BLUEPRINTS.length));
+  const topicSlug = toStudySlug(topic);
+
+  const modules: CourseModule[] = OFFLINE_BLUEPRINTS.map((blueprint, index) => {
+    const moduleNumber = index + 1;
+    const moduleId = `${topicSlug}-module-${moduleNumber}`;
+    const topics: CourseTopic[] = [0, 1].map((offset) => {
+      const focus = OFFLINE_TOPIC_FOCUS[(index + offset) % OFFLINE_TOPIC_FOCUS.length];
+      const topicNumber = offset + 1;
+      return {
+        id: `${moduleId}-topic-${topicNumber}`,
+        topicNumber,
+        title: `${focus} for ${topic}`,
+        content: `${blueprint.description} with a focus on ${focus.toLowerCase()}. Capture a small note or diagram after you read this.`,
+        keyPoints: [
+          `${focus} principles applied to ${topic}`,
+          `How to practice ${focus.toLowerCase()} in 20 minutes`,
+          `Common pitfalls when approaching ${focus.toLowerCase()}`
+        ],
+        practiceQuestions: [
+          `Describe how ${focus.toLowerCase()} shows up in ${topic}.`,
+          `Draft one tiny action you can ship today to apply ${focus.toLowerCase()}.`
+        ],
+        searchKeywords: [`${topic} ${focus}`, `${topic} quickstart`, `${topic} tutorial basics`],
+        videos: []
+      };
+    });
+
+    return {
+      id: moduleId,
+      moduleNumber,
+      title: blueprint.title,
+      description: `${blueprint.description} tailored to ${topic}.`,
+      learningObjectives: blueprint.objectives.map((obj) => `${obj} (${topic})`),
+      estimatedDuration: `${perModuleDays} day${perModuleDays !== 1 ? 's' : ''}`,
+      topics,
+      assessment: {
+        quizTitle: `${blueprint.title} check-in`,
+        quizQuestions: blueprint.checkIn,
+        problemSetTitle: `${blueprint.title} lab`,
+        problemPrompts: blueprint.prompts
+      }
+    };
+  });
+
+  return {
+    id: `offline-${Date.now()}`,
+    title: `${topic} – ${difficulty} track`,
+    description: `A ready-to-use course outline for ${topic}, tuned for ${difficulty} learners. Generated locally so you can keep working even if the API is offline.`,
+    difficulty,
+    duration,
+    prerequisites: request.prerequisites || [],
+    learningOutcomes: OFFLINE_BLUEPRINTS.map((section) => section.title),
+    modules,
+    tags: [topicSlug, difficulty, 'offline'],
+    createdAt,
+    updatedAt: createdAt
+  };
+};
+
+async function postJson<T = any>(url: string, payload: any): Promise<T> {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const text = await res.text().catch(() => '');
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} ${res.statusText}${text ? ` — ${text}` : ''}`);
+    }
+
+    return text ? JSON.parse(text) : (null as T);
+  } catch (err: any) {
+    const message = err?.message || 'Network error while calling course API';
+    if (message === 'Failed to fetch') {
+      throw new Error('Network error while calling course API (route missing or server offline)');
+    }
+    throw new Error(message);
+  }
+}
+
 interface CourseBuilderProps {
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
@@ -224,8 +369,6 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
   const [statusState, setStatusState] = useState<'idle' | 'loading' | 'done'>('idle');
   const completionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [durationInput, setDurationInput] = useState(formData.duration);
-  const pollingRef = useRef<boolean>(false);
-  const currentJobId = useRef<string | null>(null);
   
   useEffect(() => {
     setDurationInput(formData.duration);
@@ -393,9 +536,12 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
       return;
     }
 
-    // Generate a proper UUID for idempotency
-    const idempotencyKey = crypto.randomUUID();
-    console.log(`[${idempotencyKey}] Course generation: ${formData.topic} (${formData.difficulty})`);
+    const requestId = crypto.randomUUID();
+    const courseApiUrl = '/api/course/generate';
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[${requestId}] Course API URL: ${courseApiUrl}`);
+    }
+    console.log(`[${requestId}] Course generation: ${formData.topic} (${formData.difficulty})`);
     
     setLoading(true);
     setError(null);
@@ -412,111 +558,29 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
     let wasSuccessful = false;
 
     try {
-      // Use the new robust course generation API
-      const payload = {
-        topic: formData.topic,
-        level: formData.difficulty || 'beginner',
-        timePerDay: 30, // default 30 minutes per day
-        idempotencyKey: idempotencyKey
+      const payload: CourseGenerationRequest & { requestId: string } = {
+        ...formData,
+        topic: formData.topic.trim(),
+        duration: durationInput || formData.duration || '4 weeks',
+        requestId,
+        includeVideos: formData.includeVideos !== false,
+        videosPerTopic: formData.videosPerTopic || 3
       };
-      
-      // Step 1: Start course generation
-      const startResponse = await fetch('/api/path/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
+
+      const result = await postJson<CourseGenerationResponse>(courseApiUrl, payload);
+
+      if (!result || result.success === false || !result.course) {
+        const errorMessage =
+          (result && 'error' in result && (result as any).error) || 'Course generation failed';
+        throw new Error(typeof errorMessage === 'string' ? errorMessage : 'Course generation failed');
+      }
+
+      setCourse(result.course);
+      setFeaturedVideos(result.featuredVideos || null);
+      setGenerationStats({
+        time: result.generationTime,
+        videos: typeof result.videosFetched === 'number' ? result.videosFetched : undefined
       });
-
-      // Use safe JSON parsing to prevent "Unexpected end of JSON input"
-      const startResult = await safeJson(startResponse, '/api/path/generate');
-      
-      if (!startResult.ok || !startResult.data?.success) {
-        const errorMsg = startResult.errorMessage || startResult.data?.error?.message || 'Failed to start course generation';
-        console.error('[Course Generation] Start failed:', {
-          status: startResult.status,
-          traceId: startResult.traceId,
-          rawPreview: startResult.raw.substring(0, 300)
-        });
-        throw new Error(errorMsg);
-      }
-
-      const jobId = startResult.data.jobId;
-      const startTraceId = startResult.traceId;
-      currentJobId.current = jobId;
-      pollingRef.current = true;
-      console.log(`[${idempotencyKey}] Job started: ${jobId}`);
-      
-      // Step 2: Poll for completion (resilient to hot reload)
-      let attempts = 0;
-      const maxAttempts = 60; // 2 minutes max
-      
-      while (attempts < maxAttempts && pollingRef.current) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
-        
-        const statusResponse = await fetch(`/api/jobs/${jobId}`);
-        const statusResult = await safeJson(statusResponse, `/api/jobs/${jobId}`);
-        
-        if (!statusResult.ok || !statusResult.data?.success) {
-          console.error('[Course Generation] Status check failed:', {
-            status: statusResult.status,
-            traceId: statusResult.traceId,
-            jobId
-          });
-          throw new Error(statusResult.errorMessage || 'Failed to check job status');
-        }
-        
-        const { status, progressPercent, currentStage } = statusResult.data.data;
-        console.log(`[${idempotencyKey}] Progress: ${progressPercent}% - ${currentStage} [traceId: ${statusResult.traceId || startTraceId}]`);
-        
-        if (status === 'succeeded') {
-          // Step 3: Fetch the generated course
-          const courseId = statusResult.data.data.courseId;
-          const courseResponse = await fetch(`/api/courses/${courseId}`);
-          const courseResult = await safeJson(courseResponse, `/api/courses/${courseId}`);
-          
-          if (!courseResult.ok || !courseResult.data?.success) {
-            console.error('[Course Generation] Course fetch failed:', {
-              status: courseResult.status,
-              traceId: courseResult.traceId,
-              courseId
-            });
-            throw new Error(courseResult.errorMessage || 'Failed to fetch generated course');
-          }
-          
-          console.log(`[${idempotencyKey}] Success: Course generated with ${courseResult.data.data.course.modules.length} modules [traceId: ${courseResult.traceId}]`);
-          
-          // Transform to match existing Course interface
-          const transformedCourse = transformCourseData(courseResult.data.data.course, idempotencyKey);
-          setCourse(transformedCourse);
-          pollingRef.current = false;
-          currentJobId.current = null;
-          wasSuccessful = true;
-          break;
-        } else if (status === 'failed') {
-          pollingRef.current = false;
-          currentJobId.current = null;
-          const errorMsg = statusResult.data.data.error?.message || 'Course generation failed';
-          const errorTraceId = statusResult.traceId;
-          console.error('[Course Generation] Job failed:', {
-            traceId: errorTraceId,
-            errorCode: statusResult.data.data.error?.code,
-            errorMessage: errorMsg
-          });
-          throw new Error(`${errorMsg} [traceId: ${errorTraceId}]`);
-        }
-        
-        attempts++;
-      }
-      
-      if (attempts >= maxAttempts) {
-        pollingRef.current = false;
-        currentJobId.current = null;
-        throw new Error('Course generation timed out. Please try again.');
-      }
-      
-      // Course was already set in the polling loop above
       wasSuccessful = true;
       setStatusState('done');
       
@@ -525,11 +589,23 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
         completionTimeout.current = null;
       }, 5000);
     } catch (err) {
-      pollingRef.current = false;
-      currentJobId.current = null;
-      console.error('Course generation error:', err instanceof Error ? err.message : err);
-      setError(err instanceof Error ? err.message : 'An error occurred during course generation');
-      setStatusState('idle');
+      console.error('Course generation error:', err);
+      
+      // Graceful offline fallback so the UI still produces a course
+      const offlineCourse = buildOfflineCourse(formData);
+      setCourse(offlineCourse);
+      setGenerationStats({ time: 0, videos: 0 });
+      setStatusState('done');
+      completionTimeout.current = setTimeout(() => {
+        setStatusState('idle');
+        completionTimeout.current = null;
+      }, 5000);
+      setError(
+        err instanceof Error
+          ? `Live generation failed, loaded an offline plan instead. Details: ${err.message}`
+          : 'Live generation failed, loaded an offline plan instead.'
+      );
+      wasSuccessful = true;
     } finally {
       setLoading(false);
       if (!wasSuccessful && completionTimeout.current) {
@@ -550,33 +626,61 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
     linkElement.click();
   };
 
-  const renderVideo = (video: Video) => (
-    <div className={`rounded-2xl border p-4 transition-colors duration-300 ${theme.card}`} key={video.id}>
-      <div className="flex gap-3">
-        <img src={video.thumbnailUrl} alt={video.title} className="w-32 h-20 object-cover rounded-lg" />
-        <div className="flex-1">
-          <a
-            href={video.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`text-sm font-semibold hover:underline transition-colors duration-300 ${theme.text}`}
-          >
-            {video.title}
-          </a>
-          <p className={`text-xs mt-1 transition-colors duration-300 ${theme.textMuted}`}>
-            {video.channelName} · {video.duration}
-          </p>
-          <p className={`text-xs mt-1 transition-colors duration-300 ${theme.textMuted}`}>
-            {video.viewCount.toLocaleString()} views {video.rating && `· ⭐ ${video.rating.toFixed(1)}%`}
-          </p>
+  const renderVideo = (video: Video) => {
+    const isYouTube = /youtu\.?be/.test(video.url);
+    const embedUrl = isYouTube
+      ? `https://www.youtube.com/embed/${video.id}`
+      : video.url;
+
+    return (
+      <div className={`rounded-2xl border p-4 transition-colors duration-300 ${theme.card}`} key={video.id}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <a
+              href={video.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`text-sm font-semibold hover:underline transition-colors duration-300 ${theme.text}`}
+            >
+              {video.title}
+            </a>
+            <p className={`text-xs transition-colors duration-300 ${theme.textMuted}`}>
+              {video.channelName} · {video.duration}
+            </p>
+            <p className={`text-xs transition-colors duration-300 ${theme.textMuted}`}>
+              {video.viewCount.toLocaleString()} views {video.rating && `· ⭐ ${video.rating.toFixed(1)}%`}
+            </p>
+          </div>
+          {isYouTube ? (
+            <div className="relative overflow-hidden rounded-xl border bg-black aspect-video">
+              <iframe
+                src={embedUrl}
+                className="absolute inset-0 h-full w-full"
+                title={video.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <img src={video.thumbnailUrl} alt={video.title} className="w-full h-48 object-cover rounded-lg" />
+          )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderTopic = (topic: CourseTopic) => {
     const topicId = topic.id;
     const isExpanded = expandedTopics.has(topicId);
+    const videoPool =
+      formData.includeVideos === false
+        ? []
+        : topic.videos?.length
+          ? topic.videos
+          : aggregatedCourseVideos.length
+            ? aggregatedCourseVideos
+            : FALLBACK_VIDEOS;
+    const usedFallback = formData.includeVideos !== false && (!topic.videos || topic.videos.length === 0);
     return (
       <div key={topic.id} className={`rounded-2xl border transition-colors duration-300 ${theme.card}`}>
         <button
@@ -612,13 +716,20 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
                 </ol>
               </div>
             ) : null}
-            {topic.videos?.length ? (
-              <div>
-                <p className={`text-xs uppercase tracking-[0.2em] mb-2 transition-colors duration-300 ${theme.textLight}`}>Suggested Clips</p>
-                <div className="space-y-3">{topic.videos.map((video) => renderVideo(video))}</div>
-              </div>
+            {formData.includeVideos === false ? (
+              <p className={`text-xs transition-colors duration-300 ${theme.textLight}`}>Video suggestions are turned off.</p>
             ) : (
-              <p className={`text-xs transition-colors duration-300 ${theme.textLight}`}>No videos surfaced for this topic.</p>
+              <div>
+                <p className={`text-xs uppercase tracking-[0.2em] mb-2 transition-colors duration-300 ${theme.textLight}`}>
+                  Suggested Clips
+                </p>
+                {usedFallback && (
+                  <p className={`text-[0.7rem] mb-2 transition-colors duration-300 ${theme.textLight}`}>
+                    Showing a fallback clip because no topic-specific videos were returned.
+                  </p>
+                )}
+                <div className="space-y-3">{videoPool.map((video) => renderVideo(video))}</div>
+              </div>
             )}
           </div>
         )}

@@ -12,6 +12,8 @@ export type LearningStyle =
 
 export type AttentionSpan = 'short' | 'medium' | 'long';
 
+export type LearningPace = 'slow' | 'balanced' | 'fast';
+
 export type UserProfile = {
   id: string;
   name: string;
@@ -21,6 +23,17 @@ export type UserProfile = {
   attentionSpan: AttentionSpan;
   pastStruggles: string[];
   progressNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UserPreferences = {
+  id: string;
+  userId: string;
+  dailyTimeBudget: number; // minutes
+  learningPace: LearningPace;
+  remindersEnabled: boolean;
+  timezone: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -188,6 +201,18 @@ const ensureDatabase = (): Database => {
       hearts INTEGER DEFAULT 5,
       max_hearts INTEGER DEFAULT 5,
       created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      id TEXT PRIMARY KEY,
+      user_id TEXT UNIQUE NOT NULL,
+      daily_time_budget INTEGER DEFAULT 30,
+      learning_pace TEXT DEFAULT 'balanced',
+      reminders_enabled INTEGER DEFAULT 1,
+      timezone TEXT DEFAULT 'UTC',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -1059,3 +1084,111 @@ export const getGameState = (userId: string) => {
 
   return { profile, stats, skills, quests };
 };
+
+
+// ========================================
+// USER PREFERENCES
+// ========================================
+
+export const getUserPreferences = (userId: string): UserPreferences | null => {
+  const database = ensureDatabase();
+  const row = database
+    .prepare(
+      `
+      SELECT * FROM user_preferences WHERE user_id = ?
+    `
+    )
+    .get(userId) as any;
+
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    dailyTimeBudget: row.daily_time_budget,
+    learningPace: row.learning_pace as LearningPace,
+    remindersEnabled: Boolean(row.reminders_enabled),
+    timezone: row.timezone,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+};
+
+export const createUserPreferences = (
+  userId: string,
+  data?: Partial<UserPreferences>
+): UserPreferences => {
+  const database = ensureDatabase();
+  const id = randomUUID();
+  const now = new Date().toISOString();
+
+  database
+    .prepare(
+      `
+      INSERT INTO user_preferences (id, user_id, daily_time_budget, learning_pace, reminders_enabled, timezone, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `
+    )
+    .run(
+      id,
+      userId,
+      data?.dailyTimeBudget ?? 30,
+      data?.learningPace ?? 'balanced',
+      data?.remindersEnabled !== false ? 1 : 0,
+      data?.timezone ?? 'UTC',
+      now,
+      now
+    );
+
+  return getUserPreferences(userId)!;
+};
+
+export const getOrCreateUserPreferences = (userId: string): UserPreferences => {
+  const existing = getUserPreferences(userId);
+  if (existing) return existing;
+  return createUserPreferences(userId);
+};
+
+export const updateUserPreferences = (
+  userId: string,
+  data: Partial<Omit<UserPreferences, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>
+): UserPreferences | null => {
+  const database = ensureDatabase();
+  const existing = getUserPreferences(userId);
+  if (!existing) return null;
+
+  const now = new Date().toISOString();
+
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (data.dailyTimeBudget !== undefined) {
+    updates.push('daily_time_budget = ?');
+    values.push(data.dailyTimeBudget);
+  }
+  if (data.learningPace !== undefined) {
+    updates.push('learning_pace = ?');
+    values.push(data.learningPace);
+  }
+  if (data.remindersEnabled !== undefined) {
+    updates.push('reminders_enabled = ?');
+    values.push(data.remindersEnabled ? 1 : 0);
+  }
+  if (data.timezone !== undefined) {
+    updates.push('timezone = ?');
+    values.push(data.timezone);
+  }
+
+  if (updates.length === 0) return existing;
+
+  updates.push('updated_at = ?');
+  values.push(now);
+  values.push(userId);
+
+  database
+    .prepare(`UPDATE user_preferences SET ${updates.join(', ')} WHERE user_id = ?`)
+    .run(...values);
+
+  return getUserPreferences(userId);
+};
+

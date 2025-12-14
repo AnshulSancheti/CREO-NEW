@@ -1,3 +1,6 @@
+// Prisma schema for CREO - Course Generation System
+// Run: npx prisma generate && npx prisma db push
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,76 +11,296 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  password   String
-  fullName   String?
-  username   String   @unique
-  bio        String?
+  id          String   @id @default(uuid())
+  name        String
+  email       String?  @unique
+  subjects    String   @default("[]") // JSON array
+  goals       String   @default("")
+  learningStyle String @default("default") // default | examples | intuition-first
+  attentionSpan String @default("medium") // short | medium | long
+  pastStruggles String @default("[]") // JSON array
+  progressNotes String @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  preferences UserPreferences?
+  messages    Message[]
+  topicProgress TopicProgress[]
+  userStats   UserStats?
+  attempts    Attempt[]
+  questProgress QuestProgress[]
+  courses     Course[]
+  jobs        Job[]
+
+  @@map("users")
+}
+
+model UserPreferences {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  dailyTimeBudget  Int      @default(30) // minutes
+  learningPace     String   @default("balanced") // slow | balanced | fast
+  remindersEnabled Boolean  @default(true)
+  timezone         String   @default("UTC")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model Message {
+  id              String   @id @default(uuid())
+  userId          String
+  role            String   // user | assistant
+  content         String
+  topic           String?
+  learningMode    Boolean  @default(false)
+  sentiment       String   @default("neutral")
+  frustrationScore Float   @default(0)
+  metadata        String?  // JSON
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model TopicProgress {
+  id         String   @id @default(uuid())
+  userId     String
+  topic      String
+  confidence Float    @default(0.5)
+  lastReview DateTime
+  reviewCount Int     @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  stats      ProfileStats?
-  achievements UserAchievement[]
-  activities Activity[]
-  followers  Follow[] @relation("followers")
-  following  Follow[] @relation("following")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topic])
+  @@map("topic_progress")
 }
 
-model ProfileStats {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  user       User     @relation(fields: [userId], references: [id])
-  streak     Int      @default(0)
-  xp         Int      @default(0)
-  tier       String   @default("Bronze")
-  milestones Int      @default(0)
-  languages  Json?
-  skills     Json?
-  badges     Json?
-  updatedAt  DateTime @updatedAt
+model UserStats {
+  userId        String   @id
+  xp            Int      @default(0)
+  level         Int      @default(1)
+  streakCount   Int      @default(0)
+  lastActive    DateTime
+  lastEarnedAt  DateTime?
+  hearts        Int      @default(5)
+  maxHearts     Int      @default(5)
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_stats")
 }
 
-model Achievement {
-  id          String            @id @default(cuid())
-  key         String            @unique
+model Attempt {
+  id         String   @id @default(uuid())
+  userId     String
+  lessonId   String
+  stepKey    String?
+  correct    Boolean
+  deltaXp    Int      @default(0)
+  heartDelta Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("attempts")
+}
+
+model QuestProgress {
+  questId     String
+  userId      String
+  progress    Int      @default(0)
+  completedAt DateTime?
+  claimed     Boolean  @default(false)
+  updatedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([questId, userId])
+  @@map("quest_progress")
+}
+
+// ========================================
+// COURSE GENERATION SYSTEM
+// ========================================
+
+model Course {
+  id          String   @id @default(uuid())
+  userId      String
+  topic       String
+  level       String   @default("beginner") // beginner | intermediate | advanced
+  timePerDay  Int      @default(30) // minutes
+  timePerWeek Int?     // optional
+  deadline    DateTime?
+  status      String   @default("draft") // draft | generating | active | archived
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modules   Module[]
+  jobs      Job[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("courses")
+}
+
+model Module {
+  id          String   @id @default(uuid())
+  courseId    String
+  order       Int      // 1-5
   title       String
   description String
-  icon        String
-  target      Int
-  createdAt   DateTime          @default(now())
-  users       UserAchievement[]
-}
-
-model UserAchievement {
-  id             String      @id @default(cuid())
-  userId         String
-  achievementId  String
-  progress       Int         @default(0)
-  completed      Boolean     @default(false)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  user           User        @relation(fields: [userId], references: [id])
-  achievement    Achievement @relation(fields: [achievementId], references: [id])
-
-  @@unique([userId, achievementId])
-}
-
-model Activity {
-  id        String   @id @default(cuid())
-  userId    String
-  type      String
-  message   String
-  metadata  Json?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-}
-
-model Follow {
-  followerId  String
-  followingId String
+  outcomes    String   // JSON array
   createdAt   DateTime @default(now())
-  follower    User     @relation("followers", fields: [followerId], references: [id])
-  following   User     @relation("following", fields: [followingId], references: [id])
+  updatedAt   DateTime @updatedAt
 
-  @@id([followerId, followingId])
+  course    Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+  quizzes   Quiz[]
+  resources Resource[]
+
+  @@unique([courseId, order])
+  @@index([courseId])
+  @@map("modules")
+}
+
+model Lesson {
+  id               String   @id @default(uuid())
+  moduleId         String
+  order            Int
+  title            String
+  type             String   @default("learn") // learn | practice | apply
+  content          String?  // Markdown or JSON
+  estimatedMinutes Int      @default(10)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([moduleId, order])
+  @@index([moduleId])
+  @@map("lessons")
+}
+
+model Quiz {
+  id             String   @id @default(uuid())
+  moduleId       String
+  totalQuestions Int      @default(10)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  module    Module         @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+
+  @@index([moduleId])
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id          String   @id @default(uuid())
+  quizId      String
+  type        String   @default("mcq") // mcq | short | code
+  question    String
+  options     String?  // JSON array for MCQ
+  answerKey   String
+  explanation String?
+  difficulty  String   @default("medium") // easy | medium | hard
+  tags        String   @default("[]") // JSON array
+  order       Int
+  createdAt   DateTime @default(now())
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+model Resource {
+  id              String   @id @default(uuid())
+  moduleId        String
+  provider        String   @default("youtube") // youtube | article | doc
+  title           String
+  url             String
+  channel         String?
+  durationSeconds Int?
+  thumbnailUrl    String?
+  reason          String?  // Why this resource was selected
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@index([moduleId])
+  @@map("resources")
+}
+
+// ========================================
+// JOB SYSTEM & OBSERVABILITY
+// ========================================
+
+model Job {
+  id              String   @id @default(uuid())
+  userId          String
+  courseId        String?
+  type            String   // GENERATE_COURSE | ENRICH_CONTENT
+  status          String   @default("queued") // queued | running | succeeded | failed
+  progressPercent Int      @default(0)
+  currentStage    String?
+  traceId         String   @unique
+  errorCode       String?
+  errorMessage    String?
+  result          String?  // JSON result data
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course          Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  events          JobEvent[]
+  idempotencyKeys IdempotencyKey[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([traceId])
+  @@map("jobs")
+}
+
+model JobEvent {
+  id      String   @id @default(uuid())
+  jobId   String
+  stage   String   // Stage name
+  level   String   @default("info") // info | warn | error
+  message String
+  data    String?  // JSON additional data
+  ts      DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([ts])
+  @@map("job_events")
+}
+
+model IdempotencyKey {
+  id        String   @id @default(uuid())
+  userId    String
+  key       String   @unique
+  jobId     String
+  createdAt DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([key])
+  @@map("idempotency_keys")
 }

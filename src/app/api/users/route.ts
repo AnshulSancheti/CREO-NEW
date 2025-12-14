@@ -27,6 +27,21 @@ type UserPayload = {
 export async function POST(request: NextRequest) {
   try {
     const body: UserPayload = await request.json();
+    
+    // Validate: if name is explicitly provided and empty, reject it
+    if (body.hasOwnProperty('name') && body.name !== undefined && body.name.trim().length === 0) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: { 
+            code: 'VALIDATION_ERROR', 
+            message: 'Name cannot be empty' 
+          } 
+        },
+        { status: 400 }
+      );
+    }
+
     const payload: UserPayload = {
       name: body.name ?? 'Learner',
       subjects: body.subjects ?? [],
@@ -37,28 +52,70 @@ export async function POST(request: NextRequest) {
       progressNotes: body.progressNotes ?? ''
     };
 
-    const profile = body.userId
-      ? updateUserProfile(body.userId, payload)
-      : createUserProfile(payload);
+    let profile;
+    let statusCode = 201;
+    let isExisting = false;
 
-    if (!profile) {
-      return NextResponse.json(
-        { success: false, error: 'User not found for update' },
-        { status: 404 }
-      );
+    if (body.userId) {
+      // Update existing user
+      profile = updateUserProfile(body.userId, payload);
+      statusCode = 200;
+      
+      if (!profile) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: { 
+              code: 'USER_NOT_FOUND', 
+              message: 'User not found for update' 
+            } 
+          },
+          { status: 404 }
+        );
+      }
+    } else {
+      // Create new user - use getOrCreateUser for idempotency
+      try {
+        profile = createUserProfile(payload);
+        statusCode = 201;
+      } catch (error: any) {
+        // Check if error is due to duplicate user (unique constraint violation)
+        if (error?.message?.includes('UNIQUE constraint failed') || 
+            error?.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+          // User already exists - this should rarely happen, but handle it gracefully
+          console.warn('Attempted to create duplicate user, using getOrCreateUser');
+          profile = getOrCreateUser(payload);
+          statusCode = 200;
+          isExisting = true;
+        } else {
+          throw error;
+        }
+      }
     }
 
     const progress = listTopicProgress(profile.id);
     const stats = getUserStats(profile.id);
 
     return NextResponse.json(
-      { success: true, data: { profile, progress, stats } },
-      { status: body.userId ? 200 : 201 }
+      { 
+        success: true, 
+        data: { profile, progress, stats },
+        ...(isExisting && { info: 'Profile already existed' })
+      },
+      { status: statusCode }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('POST /api/users error', error);
+    
+    // Return structured error
     return NextResponse.json(
-      { success: false, error: 'Failed to save user profile' },
+      { 
+        success: false, 
+        error: { 
+          code: 'SERVER_ERROR', 
+          message: 'Failed to save user profile' 
+        } 
+      },
       { status: 500 }
     );
   }

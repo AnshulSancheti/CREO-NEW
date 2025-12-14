@@ -1,52 +1,77 @@
 'use client';
 
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Playfair_Display, Space_Grotesk } from 'next/font/google';
-import { AnimatePresence, motion } from 'framer-motion';
-import { BookOpen, BookOpenCheck, GraduationCap, Sparkles, Star, TrendingUp, Moon, Sun } from 'lucide-react';
-import CourseProgress from '@/app/components/CourseProgress';
+import { Plus_Jakarta_Sans } from 'next/font/google';
+import { AnimatePresence, animate, motion, useInView, useMotionValue } from 'framer-motion';
+import { BookOpen, BookOpenCheck, Check, GraduationCap, Sparkles, Star, TrendingUp, Moon, Sun, XCircle, ArrowRight } from 'lucide-react';
 import { Course } from '@/app/types/course';
 import Waves from '@/app/components/Waves';
-import FloatingElement from '@/app/components/FloatingElement';
-import { HERO_FLOATING_ELEMENTS } from '@/app/config/heroFloatingElements';
 import LearningCoach from '@/app/components/learning-coach/LearningCoach';
 import LandingChat from '@/app/components/chat/LandingChat';
-import GamifiedDashboard from '@/app/components/dashboard/GamifiedDashboard';
-import { useAuth } from '@/app/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import { LogOut, User } from 'lucide-react';
 
-const headlineFont = Playfair_Display({ subsets: ['latin'], weight: ['600', '700', '900'] });
-const bodyFont = Space_Grotesk({ subsets: ['latin'], weight: ['400', '500', '600'] });
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
+const headlineFont = jakarta;
+const bodyFont = jakarta;
 
+const COLORS = {
+  background: '#fff8f5',
+  cardPink: '#ffe9e0',
+  cardPeach: '#ffeeda',
+  cardMint: '#e6f7ed',
+  cardBase: '#ffffff',
+  accent: '#c24f63',
+  textPrimary: '#1f120f',
+  textSecondary: '#5b4743',
+  textTertiary: '#9b867f',
+  borderLight: '#f2e1d8'
+};
 
-const HERO_STATS = [
-  { label: 'Learning paths created', value: '18,240' },
-  { label: 'Resources curated', value: '72,110' },
-  { label: 'Active study groups', value: '342' }
-];
+const HERO_DEFAULT = {
+  eyebrow: 'TYPE IT. GET A PATH.',
+  headline: 'Turn anything you want to learn into a path you can follow.',
+  subheadline:
+    'CREO builds a step-by-step plan from the best resources, then pairs you with a small study group so you never learn alone.',
+  primaryCta: {
+    text: 'Start a learning path',
+    action: '/learn',
+    enabled: true
+  },
+  secondaryCta: {
+    text: 'See how it works',
+    action: 'scroll-to-features',
+    enabled: true
+  },
+  socialProof: 'Trusted by 18,000+ learners'
+};
 
-const FEATURE_STACK = [
+const FEATURES_FALLBACK = [
   {
+    id: 'describe',
     title: 'Describe what you want',
-    body: 'Type any topic or goal. Tell us how fast you want to go.',
-    accentLight: 'from-[#fde6e0] to-[#f9c5d1]',
-    accentDark: 'from-[#3a2420] to-[#3a2028]'
+    description: 'Type any topic or goal. Tell us how fast you want to go.',
+    icon: '✨',
+    backgroundColor: '#FFE8E8',
+    metadata: ['Natural language', 'Any subject']
   },
   {
+    id: 'simple-path',
     title: 'Get a simple path',
-    body: 'We lay out steps with a few trusted videos, reads, and projects. No endless tab hopping.',
-    accentLight: 'from-[#fff4d8] to-[#ffd6a5]',
-    accentDark: 'from-[#3a3420] to-[#3a2e20]'
+    description: 'We lay out steps with a few trusted videos, reads, and projects. No endless tab hopping.',
+    icon: '🎯',
+    backgroundColor: '#FFF0E0',
+    metadata: ['Curated resources', 'Step-by-step']
   },
   {
+    id: 'stick-with-it',
     title: 'Stick with it',
-    body: 'Gentle reminders, streaks, and small study groups keep you moving.',
-    accentLight: 'from-[#e3f7f2] to-[#c0f0e4]',
-    accentDark: 'from-[#203a34] to-[#203a30]'
+    description: 'Gentle reminders, streaks, and small study groups keep you moving.',
+    icon: '🚀',
+    backgroundColor: '#E0F7F4',
+    metadata: ['Study groups', 'Progress tracking']
   }
 ];
+
 
 const FLOW_STEPS = [
   {
@@ -69,13 +94,6 @@ const FLOW_STEPS = [
     title: 'Track streaks and wins',
     copy: 'Daily nudges, progress checkpoints, and quick recaps show what to do today and what\'s next.'
   }
-];
-
-const SIGNALS = [
-  { title: 'Linear Algebra for ML', learners: 213, vibe: 'Deep focus · EU afternoon' },
-  { title: 'Quant UX Research', learners: 94, vibe: 'Async thread · AMER evening' },
-  { title: 'React + Supabase', learners: 178, vibe: 'Live build · APAC morning' },
-  { title: 'Writing for AI tutors', learners: 66, vibe: 'Calm studio · Global hybrid' }
 ];
 
 type JourneyPreview = {
@@ -109,15 +127,52 @@ const buildJourneyFromCourse = (
   }))
 });
 
+const FALLBACK_JOURNEY: JourneyPreview = {
+  courseId: 'demo',
+  title: 'Build an AI agent that plans your week',
+  modules: [
+    { id: 1, title: 'Set the agent’s voice', time: '8 min', status: 'completed', resources: [{ name: 'Tone + persona guide' }] },
+    { id: 2, title: 'Schedule-aware prompting', time: '15 min', status: 'current', resources: [{ name: 'Calendar context prompt' }] },
+    { id: 3, title: 'Integrate tasks & focus blocks', time: '14 min', status: 'pending', resources: [{ name: 'Todo + focus API stub' }] },
+    { id: 4, title: 'Test a full planning loop', time: '12 min', status: 'pending', resources: [{ name: 'Dry-run with sample week' }] }
+  ]
+};
+
+type StatsData = {
+  pathsCreated: number;
+  resourcesCurated: number;
+  activeGroups: number;
+  lastUpdated?: string;
+};
+
+const STATS_FALLBACK: StatsData = {
+  pathsCreated: 18240,
+  resourcesCurated: 72110,
+  activeGroups: 342
+};
+
 export default function Home() {
   const [activeStep, setActiveStep] = useState(0);
   const [showAuth, setShowAuth] = useState(false);
-  const [showJourney, setShowJourney] = useState(false);
   const [showIntro, setShowIntro] = useState<boolean | null>(null);
   const [navJourney, setNavJourney] = useState<JourneyPreview | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const { user, logout, isLoading: authLoading } = useAuth();
-  const router = useRouter();
+  const [heroContent, setHeroContent] = useState(HERO_DEFAULT);
+  const [heroLoading, setHeroLoading] = useState(true);
+  const [features, setFeatures] = useState(FEATURES_FALLBACK);
+  const [featuresLoading, setFeaturesLoading] = useState(true);
+  const [statsData, setStatsData] = useState<StatsData>(STATS_FALLBACK);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [featuresLogged, setFeaturesLogged] = useState(false);
+  const [statsLogged, setStatsLogged] = useState(false);
+  const [showComparison, setShowComparison] = useState(true);
+  const [progressExpanded, setProgressExpanded] = useState(false);
+  const featuresRef = useRef<HTMLDivElement | null>(null);
+  const statsRef = useRef<HTMLDivElement | null>(null);
+  const featuresInView = useInView(featuresRef, { once: true, amount: 0.2 });
+  const statsInView = useInView(statsRef, { once: true, amount: 0.5 });
+  const hoveredFeatures = useRef(new Set<string>());
 
   // Dark mode initialization
   useEffect(() => {
@@ -134,6 +189,68 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (featuresInView && sessionId && !featuresLogged) {
+      setFeaturesLogged(true);
+      fetch('/api/analytics/section-view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, section: 'features', location: 'home' }),
+        keepalive: true
+      }).catch(() => {});
+    }
+  }, [featuresInView, sessionId, featuresLogged]);
+
+  useEffect(() => {
+    if (statsInView && sessionId && !statsLogged) {
+      setStatsLogged(true);
+      fetch('/api/analytics/section-view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, section: 'stats', location: 'home' }),
+        keepalive: true
+      }).catch(() => {});
+    }
+  }, [statsInView, sessionId, statsLogged]);
+
+  const handleFeatureHover = (id: string) => {
+    if (!sessionId) return;
+    if (hoveredFeatures.current.has(id)) return;
+    hoveredFeatures.current.add(id);
+    fetch('/api/analytics/feature-hover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, featureId: id, section: 'features' }),
+      keepalive: true
+    }).catch(() => {});
+  };
+
+  const handleSecondaryCta = () => {
+    if (sessionId) {
+      fetch('/api/analytics/cta-click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, button: 'secondary', location: 'hero' }),
+        keepalive: true
+      }).catch(() => {});
+    }
+    const el = document.getElementById('features');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handlePrimaryCta = () => {
+    if (sessionId) {
+      fetch('/api/analytics/cta-click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, button: 'primary', location: 'hero' }),
+        keepalive: true
+      }).catch(() => {});
+    }
+  };
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const played = localStorage.getItem('creoIntroPlayed');
     if (!played) {
@@ -145,6 +262,80 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
     startTransition(() => setShowIntro(false));
+  }, []);
+
+  // Hero content fetch (for future dynamic CMS/A-B testing)
+  useEffect(() => {
+    let active = true;
+    const loadHero = async () => {
+      try {
+        const res = await fetch('/api/content/hero');
+        if (!res.ok) throw new Error('Failed hero content');
+        const data = await res.json();
+        if (active && data) {
+          setHeroContent({ ...HERO_DEFAULT, ...data });
+        }
+      } catch (err) {
+        // Fallback to defaults; avoid console noise for optional content
+      } finally {
+        if (active) setHeroLoading(false);
+      }
+    };
+    loadHero();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Features content fetch
+  useEffect(() => {
+    let active = true;
+    const loadFeatures = async () => {
+      try {
+        const res = await fetch('/api/content/features');
+        if (!res.ok) throw new Error('Failed features content');
+        const data = await res.json();
+        if (active && data?.features?.length) {
+          setFeatures(data.features);
+        }
+      } catch (err) {
+        // keep fallback
+      } finally {
+        if (active) setFeaturesLoading(false);
+      }
+    };
+    loadFeatures();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Live stats fetch
+  useEffect(() => {
+    let active = true;
+    const loadStats = async () => {
+      try {
+        const res = await fetch('/api/stats/live');
+        if (!res.ok) throw new Error('Failed stats');
+        const data = await res.json();
+        if (active && data) {
+          setStatsData({
+            pathsCreated: data.pathsCreated ?? STATS_FALLBACK.pathsCreated,
+            resourcesCurated: data.resourcesCurated ?? STATS_FALLBACK.resourcesCurated,
+            activeGroups: data.activeGroups ?? STATS_FALLBACK.activeGroups,
+            lastUpdated: data.lastUpdated
+          });
+        }
+      } catch (err) {
+        // fallback to defaults silently
+      } finally {
+        if (active) setStatsLoading(false);
+      }
+    };
+    loadStats();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -174,6 +365,93 @@ export default function Home() {
       window.removeEventListener('creo-course-updated', storageHandler as EventListener);
     };
   }, []);
+
+  const journeyPreview = navJourney ?? FALLBACK_JOURNEY;
+  const mutedText = isDarkMode ? 'text-[#b8998a]' : 'text-[#5b4743]';
+  const primaryCtaHref =
+    heroContent.primaryCta.action && !['/course', '/create-path'].includes(heroContent.primaryCta.action)
+      ? heroContent.primaryCta.action
+      : '/learn';
+
+  const ensureSession = () => {
+    if (typeof window === 'undefined') return null;
+    const existing = localStorage.getItem('creoSessionId');
+    if (existing) return existing;
+    const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem('creoSessionId', id);
+    document.cookie = `creoSessionId=${id}; max-age=86400; path=/; SameSite=Lax`;
+    return id;
+  };
+
+  useEffect(() => {
+    const id = ensureSession();
+    setSessionId(id);
+    if (!id) return;
+    const payload = {
+      sessionId: id,
+      referrer: document.referrer || 'direct',
+      userAgent: navigator.userAgent,
+      page: 'home'
+    };
+    fetch('/api/analytics/page-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true
+    }).catch(() => {
+      // silent failure
+    });
+  }, []);
+
+function StatNumber({ value, inView }: { value: number; inView: boolean }) {
+  const count = useMotionValue(0);
+  const [display, setDisplay] = useState('0');
+
+  useEffect(() => {
+    const unsub = count.on('change', (latest) => {
+      setDisplay(Math.max(0, Math.floor(latest)).toLocaleString());
+    });
+    return () => unsub();
+  }, [count]);
+
+  useEffect(() => {
+    if (!inView) return;
+    const controls = animate(count, value, { duration: 2, ease: 'easeOut' });
+    return () => controls.stop();
+  }, [count, inView, value]);
+
+  return <span className="text-5xl font-extrabold text-[#c24f63] md:text-6xl">{display}</span>;
+}
+
+function StatCard({ label, value, isLoading, isDarkMode }: { label: string; value: number; isLoading: boolean; isDarkMode: boolean }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const inView = useInView(ref, { once: true, amount: 0.5 });
+
+  return (
+    <div
+      ref={ref}
+      className="rounded-2xl border px-4 py-8 text-center shadow-sm"
+      style={{
+        backgroundColor: isDarkMode ? '#1f1410' : '#fff3ee',
+        borderColor: COLORS.borderLight
+      }}
+    >
+      {isLoading ? (
+        <div className="space-y-2 animate-pulse">
+          <div className="mx-auto h-8 w-24 rounded-full bg-[#f2e1d8]" />
+          <div className="mx-auto h-3 w-32 rounded-full bg-[#f2e1d8]" />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <StatNumber value={value} inView={inView} />
+          <p className={`text-[0.75rem] uppercase tracking-[0.25em] ${
+            isDarkMode ? 'text-[#b8998a]' : 'text-[#7d5c55]'
+          }`}>{label}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
   const words = [
     { text: 'Everyone starts somewhere.', delay: 0 },
@@ -255,413 +533,477 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* 3D Hero Section */}
-      <div className={`relative min-h-screen overflow-hidden transition-colors duration-500 ${
-        isDarkMode 
-          ? 'bg-gradient-to-br from-[#1a120e] via-[#1f1410] to-[#1a0f0c]' 
-          : 'bg-gradient-to-br from-[#fffaf6] via-[#fff0e8] to-[#ffe8e8]'
-      }`}>
-        {/* Soft waves overlay */}
+      {/* Hero Section - Simplified */}
+      <div
+        id="hero"
+        className={`relative min-h-screen overflow-hidden transition-colors duration-500 ${bodyFont.className} ${
+          isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
+        }`}
+        style={{
+          background: isDarkMode
+            ? '#0f0a08'
+            : 'linear-gradient(180deg, #fff8f5 0%, #ffe8e8 60%, #fff8f5 100%)'
+        }}
+      >
         <Waves
-          lineColor={isDarkMode ? 'rgba(194, 79, 99, 0.12)' : 'rgba(194, 79, 99, 0.06)'}
+          lineColor={isDarkMode ? 'rgba(194, 79, 99, 0.12)' : 'rgba(194, 79, 99, 0.04)'}
           backgroundColor="transparent"
           waveSpeedX={0.004}
           waveSpeedY={0.002}
-          waveAmpX={20}
-          waveAmpY={12}
-          xGap={18}
-          yGap={50}
+          waveAmpX={16}
+          waveAmpY={10}
+          xGap={20}
+          yGap={52}
           friction={0.97}
           tension={0.002}
-          maxCursorMove={40}
+          maxCursorMove={30}
           style={{ position: 'absolute', zIndex: 1, pointerEvents: 'none' }}
         />
+        <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-56 max-w-5xl rounded-[50%] bg-gradient-to-b from-[#c24f63]/12 to-transparent blur-3xl" />
 
-        {/* Subtle floating sparkles - brand colors */}
-        <motion.div
-          className={`absolute top-[18%] left-[12%] z-10 ${
-            isDarkMode ? 'text-[#c24f63] opacity-30' : 'text-[#ffb9c5] opacity-40'
-          }`}
-          animate={{
-            y: [-8, 8, -8],
-            rotate: [0, 25, 0],
-            opacity: isDarkMode ? [0.25, 0.35, 0.25] : [0.3, 0.5, 0.3]
-          }}
-          transition={{ duration: 5, repeat: Infinity }}
-        >
-          <Star className="w-6 h-6 fill-current" />
-        </motion.div>
+        <nav className="relative z-20 mx-auto flex max-w-6xl items-center justify-between px-4 pb-4 pt-6 md:px-6">
+          <div className="flex items-center gap-2">
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-full text-base font-bold transition-colors duration-300 ${
+                isDarkMode ? 'bg-[#f5e6dc] text-[#1f120f]' : 'bg-[#1f120f] text-white'
+              }`}
+            >
+              ∞
+            </div>
+            <span className={`${headlineFont.className} text-xl font-bold ${isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'}`}>
+              CREO
+            </span>
+          </div>
 
-        <motion.div
-          className={`absolute top-[28%] right-[18%] z-10 ${
-            isDarkMode ? 'text-[#d4a574] opacity-30' : 'text-[#ffd6a5] opacity-40'
-          }`}
-          animate={{
-            y: [8, -8, 8],
-            rotate: [25, 0, 25],
-            opacity: isDarkMode ? [0.3, 0.4, 0.3] : [0.4, 0.6, 0.4]
-          }}
-          transition={{ duration: 4.5, repeat: Infinity, delay: 0.5 }}
-        >
-          <Sparkles className="w-5 h-5" />
-        </motion.div>
+          <div
+            className={`hidden items-center gap-1 rounded-full border px-2 py-2 shadow-sm md:flex ${
+              isDarkMode ? 'border-[#3a2f2a] bg-[#1f1410]/70' : 'border-[#f2e1d8] bg-white/80'
+            }`}
+          >
+            <Link
+              href="/course"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                isDarkMode ? 'text-[#f5e6dc] hover:bg-[#2a1f1a]' : 'text-[#1f120f] hover:bg-[#f2e1d8]/60'
+              }`}
+            >
+              Course Builder
+            </Link>
+            <Link
+              href="/tutor"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                isDarkMode ? 'text-[#f5e6dc] hover:bg-[#2a1f1a]' : 'text-[#1f120f] hover:bg-[#f2e1d8]/60'
+              }`}
+            >
+              Learning Coach
+            </Link>
+            <Link
+              href="/api-test"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                isDarkMode ? 'text-[#f5e6dc] hover:bg-[#2a1f1a]' : 'text-[#1f120f] hover:bg-[#f2e1d8]/60'
+              }`}
+            >
+              API
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowAuth((prev) => !prev)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                isDarkMode ? 'text-[#f5e6dc] hover:bg-[#2a1f1a]' : 'text-[#1f120f] hover:bg-[#f2e1d8]/60'
+              }`}
+            >
+              Sign in
+            </button>
+          </div>
 
-        <motion.div
-          className={`absolute bottom-[35%] left-[15%] z-10 ${
-            isDarkMode ? 'text-[#c24f63] opacity-25' : 'text-[#c24f63] opacity-30'
-          }`}
-          animate={{
-            scale: [1, 1.15, 1],
-            opacity: isDarkMode ? [0.2, 0.3, 0.2] : [0.25, 0.4, 0.25]
-          }}
-          transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-        >
-          <Star className="w-5 h-5 fill-current" />
-        </motion.div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              aria-label="Toggle dark mode"
+              className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${
+                isDarkMode ? 'bg-[#2a1f1a] text-[#f5e6dc] hover:bg-[#3a2f2a]' : 'bg-white text-[#1f120f] shadow-sm hover:bg-[#f2e1d8]'
+              }`}
+            >
+              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAuth((prev) => !prev)}
+              className="flex items-center gap-2 rounded-full bg-[#c24f63] px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+            >
+              <span>Start free</span>
+              <span className="text-lg">→</span>
+            </button>
+          </div>
 
-        {/* Navigation - Phantom-inspired */}
-        <nav className={`${bodyFont.className} relative z-30 px-6 py-6`}>
-          <div className="max-w-7xl mx-auto flex items-center">
-            {/* Logo - Left */}
-            <div className="flex-1">
-              <Link href="/" className="flex items-center gap-2 w-fit">
-                <div className={`flex h-9 w-9 items-center justify-center rounded-full ${
-                  isDarkMode ? 'bg-[#f5e6dc] text-[#1f120f]' : 'bg-[#1f120f] text-white'
-                } text-base font-bold transition-colors duration-300`}>
-                  ∞
-                </div>
-                <span className={`${headlineFont.className} text-xl font-bold ${
-                  isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
-                }`}>CREO</span>
-              </Link>
+          {showAuth && (
+            <div className="absolute right-4 top-20">
+              <AuthDialogue onClose={() => setShowAuth(false)} isDark={isDarkMode} />
+            </div>
+          )}
+        </nav>
+
+        <div className="relative z-10 mx-auto flex min-h-[80vh] max-w-5xl flex-col items-center justify-center px-4 pb-16 pt-12 md:pt-16">
+          <div className="w-full max-w-[600px] text-center space-y-6">
+            <div className="inline-flex items-center justify-center gap-2 rounded-full bg-[#c24f63]/10 px-4 py-2 text-[0.75rem] font-semibold tracking-[0.2em] text-[#a33249]">
+              <Sparkles className="h-4 w-4" />
+              {heroContent.eyebrow}
             </div>
 
-            {/* Center Pills Menu - Absolutely Centered */}
-            <div className="flex justify-center">
-              <div className={`hidden md:flex items-center gap-1 backdrop-blur-xl rounded-full border px-2 py-2 shadow-lg transition-colors duration-300 ${
-                isDarkMode 
-                  ? 'bg-[#1f1410]/70 border-[#3a2f2a]/50' 
-                  : 'bg-white/70 border-white/40'
-              }`}>
-                <Link
-                  href="/course"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    isDarkMode 
-                      ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
-                      : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
+            {heroLoading ? (
+              <div className="space-y-3 animate-pulse">
+                <div className="mx-auto h-10 w-11/12 rounded-full bg-white/60" />
+                <div className="mx-auto h-4 w-10/12 rounded-full bg-white/50" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <h1
+                  className={`${headlineFont.className} text-[3rem] font-extrabold leading-[1.05] md:text-[3.4rem] lg:text-[3.7rem] ${
+                    isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
                   }`}
                 >
-                  Course Builder
-                </Link>
+                  {heroContent.headline}
+                </h1>
+                <p className={`mx-auto max-w-2xl text-lg leading-[1.65] ${isDarkMode ? 'text-[#c9a89a]' : 'text-[#5b4743]'}`}>
+                  {heroContent.subheadline}
+                </p>
+              </div>
+            )}
+
+            <div className="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row sm:justify-center sm:gap-4">
+              {heroContent.primaryCta.enabled !== false ? (
                 <Link
-                  href="/tutor"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    isDarkMode 
-                      ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
-                      : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
+                  href={primaryCtaHref}
+                  onClick={handlePrimaryCta}
+                  className="inline-flex w-full min-h-12 items-center justify-center rounded-full bg-[#c24f63] px-7 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl sm:w-auto"
+                >
+                  {heroContent.primaryCta.text || 'Start a learning path'}
+                </Link>
+              ) : (
+                <div className="inline-flex w-full min-h-12 items-center justify-center rounded-full bg-[#c24f63]/60 px-7 py-3.5 text-sm font-semibold text-white sm:w-auto">
+                  {heroContent.primaryCta.text || 'Start a learning path'}
+                </div>
+              )}
+              {heroContent.secondaryCta.enabled !== false && (
+                <button
+                  type="button"
+                  onClick={handleSecondaryCta}
+                  className={`inline-flex w-full min-h-12 items-center justify-center rounded-full border px-7 py-3.5 text-sm font-semibold transition hover:-translate-y-0.5 sm:w-auto ${
+                    isDarkMode ? 'border-[#3a2f2a] text-[#f5e6dc]' : 'border-[#1f120f]/15 text-[#1f120f]'
                   }`}
                 >
-                  Learning Coach
-                </Link>
-                <Link
-                  href="/api-test"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    isDarkMode 
-                      ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
-                      : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
-                  }`}
-                >
-                  API
-                </Link>
-                {user ? (
-                  <Link
-                    href="/dashboard"
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      isDarkMode 
-                        ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
-                        : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
-                    }`}
-                  >
-                    Dashboard
-                  </Link>
-                ) : (
-                  <Link
-                    href="/auth"
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      isDarkMode 
-                        ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
-                        : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
-                    }`}
-                  >
-                    Sign in
-                  </Link>
-                )}
+                  {heroContent.secondaryCta.text}
+                </button>
+              )}
+            </div>
+
+            <p className={`text-sm ${isDarkMode ? 'text-[#b8998a]' : 'text-[#7d5c55]'}`}>{heroContent.socialProof}</p>
+          </div>
+
+          <div className="mt-10 w-full max-w-4xl space-y-4">
+            <div
+              className={`rounded-3xl border p-5 shadow-[0_20px_60px_rgba(0,0,0,0.08)] ${
+                isDarkMode ? 'border-[#3a2f2a] bg-[#1f1410]' : 'border-[#f2e1d8] bg-white'
+              }`}
+            >
+              <div className="flex flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className={`text-[0.7rem] uppercase tracking-[0.35em] ${isDarkMode ? 'text-[#c9a89a]' : 'text-[#b37871]'}`}>
+                    Path preview
+                  </p>
+                  <h3 className={`${headlineFont.className} text-2xl ${isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'}`}>
+                    {journeyPreview.title}
+                  </h3>
+                  <p className={`text-xs ${isDarkMode ? 'text-[#b8998a]' : 'text-[#7d5c55]'}`}>
+                    {navJourney ? 'Synced from your last plan' : 'Sample path · edit anytime'}
+                  </p>
+                </div>
+                <span className="w-fit rounded-full bg-[#c24f63]/10 px-3 py-1 text-xs font-semibold text-[#a33249]">
+                  {journeyPreview.modules.length} steps
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {journeyPreview.modules.slice(0, 4).map((module) => {
+                  const statusStyles =
+                    module.status === 'completed'
+                      ? isDarkMode
+                        ? 'bg-[#2a1f1a] text-[#ff8ab6]'
+                        : 'bg-[#ffe9ea] text-[#c24f63]'
+                      : module.status === 'current'
+                        ? 'bg-[#c24f63] text-white'
+                        : isDarkMode
+                          ? 'bg-[#1f1410] text-[#c9a89a]'
+                          : 'bg-[#fdf1ec] text-[#5b4743]';
+                  return (
+                    <div
+                      key={module.moduleKey || module.id}
+                      className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${
+                        isDarkMode ? 'border-[#3a2f2a] bg-[#140d0b]' : 'border-[#f2e1d8] bg-[#fffaf6]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`flex h-9 w-9 items-center justify-center rounded-2xl text-sm font-semibold ${statusStyles}`}>
+                          {module.id}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold">{module.title}</p>
+                          <p className={`text-[0.78rem] ${isDarkMode ? 'text-[#b8998a]' : 'text-[#7d5c55]'}`}>
+                            {module.resources[0]?.name || 'Resource'} • {module.time || '10 min'}
+                          </p>
+                        </div>
+                      </div>
+                      {module.status === 'completed' && <Star className="h-4 w-4 text-[#c24f63]" />}
+                      {module.status === 'current' && <TrendingUp className="h-4 w-4 text-[#c24f63]" />}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Right Actions */}
-            <div className="flex-1 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={toggleDarkMode}
-                aria-label="Toggle dark mode"
-                className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
-                  isDarkMode 
-                    ? 'bg-[#2a1f1a] text-[#f5e6dc] hover:bg-[#3a2f2a]' 
-                    : 'bg-[#f2e1d8]/50 text-[#1f120f] hover:bg-[#f2e1d8]'
-                }`}
-              >
-                {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
-              
-              {user ? (
-                <div className="flex items-center gap-3">
-                  <Link
-                    href="/dashboard"
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      isDarkMode 
-                        ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
-                        : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
-                    }`}
-                  >
-                    <User className="h-4 w-4" />
-                    {user.email.split('@')[0]}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      logout();
-                      router.push('/auth');
-                    }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      isDarkMode 
-                        ? 'hover:bg-[#2a1f1a] text-[#f5e6dc]' 
-                        : 'hover:bg-[#f2e1d8]/50 text-[#1f120f]'
-                    }`}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <Link
-                  href="/auth"
-                  className={`px-5 py-2.5 rounded-full font-semibold text-sm transition-all shadow-lg ${
-                    isDarkMode 
-                      ? 'bg-[#c24f63] text-white hover:bg-[#d15f73]' 
-                      : 'bg-[#c24f63] text-white hover:bg-[#d15f73]'
-                  }`}
-                >
-                  Sign in
-                </Link>
-              )}
-            </div>
-            
-          </div>
-        </nav>
-
-        {/* Hero - Phantom-inspired structure */}
-        <div className="relative z-20 flex items-center justify-center min-h-[calc(100vh-100px)] px-6 pb-16">
-          <div className="relative max-w-7xl w-full">
-            
-            {/* Floating elements around headline */}
-            <div className="hidden lg:block">
-              {HERO_FLOATING_ELEMENTS.map((element) => (
-                <FloatingElement
-                  key={element.id}
-                  config={element}
-                  isDarkMode={isDarkMode}
-                  parallaxStrength={1}
-                />
-              ))}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl bg-white/80 px-4 py-3 text-left shadow-sm ring-1 ring-[#f2e1d8] backdrop-blur">
+                <p className="text-sm font-semibold text-[#1f120f]">Paths under a minute</p>
+                <p className="text-xs text-[#5b4743]">Type a topic, get 5 steps.</p>
+              </div>
+              <div className="rounded-2xl bg-white/80 px-4 py-3 text-left shadow-sm ring-1 ring-[#f2e1d8] backdrop-blur">
+                <p className="text-sm font-semibold text-[#1f120f]">Pods of 3–5</p>
+                <p className="text-xs text-[#5b4743]">Camera optional, gentle host.</p>
+              </div>
+              <div className="rounded-2xl bg-white/80 px-4 py-3 text-left shadow-sm ring-1 ring-[#f2e1d8] backdrop-blur">
+                <p className="text-sm font-semibold text-[#1f120f]">Coach on tap</p>
+                <p className="text-xs text-[#5b4743]">Hints when you feel stuck.</p>
+              </div>
             </div>
 
-            {/* Main headline - centered with CTA */}
-            <div className="text-center relative z-10">
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-              >
-                <h1 className={`${headlineFont.className} text-7xl md:text-8xl lg:text-9xl font-black leading-[0.9] transition-colors duration-300 ${
-                  isDarkMode 
-                    ? 'text-[#f5e6dc] drop-shadow-[0_8px_32px_rgba(194,79,99,0.3)]' 
-                    : 'text-[#1f120f] drop-shadow-[0_8px_32px_rgba(194,79,99,0.2)]'
-                }`}>
-                  Meet Creo
-                </h1>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.7, delay: 0.5 }}
-                className="mt-12"
-              >
-                <Link
-                  href="/course"
-                  className={`${bodyFont.className} inline-flex items-center gap-3 px-8 py-4 rounded-full font-semibold text-lg transition-all shadow-2xl ${
-                    isDarkMode 
-                      ? 'bg-[#c24f63] text-white hover:bg-[#d15f73] shadow-[0_20px_60px_rgba(194,79,99,0.4)]' 
-                      : 'bg-[#c24f63] text-white hover:bg-[#d15f73] shadow-[0_20px_60px_rgba(194,79,99,0.3)]'
-                  } hover:scale-105 hover:shadow-[0_25px_70px_rgba(194,79,99,0.5)]`}
-                >
-                  <span>Launch Builder</span>
-                  <span className="text-xl">→</span>
-                </Link>
-              </motion.div>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Original Homepage Content Below */}
       <div className={`${bodyFont.className} transition-colors duration-500 ${
-        isDarkMode ? 'bg-[#0f0a08] text-[#f5e6dc]' : 'bg-[#fdf8f2] text-[#1f120f]'
+        isDarkMode ? 'bg-[#0f0a08] text-[#f5e6dc]' : 'bg-[#fff8f5] text-[#1f120f]'
       }`}>
-        <main className="container mx-auto space-y-16 px-4 py-12">
-          {/* Hero */}
-          <section className={`relative overflow-hidden rounded-[40px] border p-8 transition-colors duration-300 ${
-            isDarkMode 
-              ? 'border-[#3a2f2a] bg-gradient-to-br from-[#1f1410] via-[#2a1820] to-[#1f1410] shadow-[0_40px_120px_rgba(194,79,99,0.2)]' 
-              : 'border-[#f2e1d8] bg-gradient-to-br from-[#fff2ea] via-[#ffe8f0] to-[#fce3d8] shadow-[0_40px_120px_rgba(244,206,185,0.6)]'
-          }`}>
-            <div className="grid gap-10 lg:grid-cols-[3fr,2fr]">
-              <div className="space-y-6">
-                <p className={`text-xs uppercase tracking-[0.6em] ${
-                  isDarkMode ? 'text-[#c9a89a]' : 'text-[#b37871]'
-                }`}>Type it. Get a path.</p>
-                <h1 className={`${headlineFont.className} text-4xl md:text-5xl ${
-                  isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
-                }`}>
-                  Turn anything you want to learn into a path you can follow
-                </h1>
-                <p className={`text-base max-w-2xl ${
-                  isDarkMode ? 'text-[#b8998a]' : 'text-[#5b4743]'
-                }`}>
-                  CREO builds a step-by-step plan from the best resources, then pairs you with a small study group so you
-                  never learn alone.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <Link
-                    href="/course"
-                    className={`rounded-full px-6 py-3 text-sm font-semibold transition hover:-translate-y-0.5 ${
-                      isDarkMode ? 'bg-[#f5e6dc] text-[#1f120f]' : 'bg-[#1f120f] text-white'
-                    }`}
-                  >
-                    Start a learning path
-                  </Link>
-                  <Link
-                    href="/course"
-                    className={`rounded-full border px-6 py-3 text-sm font-semibold transition hover:-translate-y-0.5 ${
-                      isDarkMode 
-                        ? 'border-[#3a2f2a] text-[#f5e6dc]' 
-                        : 'border-[#1f120f]/20 text-[#1f120f]'
-                    }`}
-                  >
-                    See how it works
-                  </Link>
-                </div>
-              </div>
+        <main className="container mx-auto px-4 py-14">
+          <div className="grid gap-10">
+            <div className="space-y-24 md:space-y-28">
 
-              <div className={`rounded-[32px] border backdrop-blur p-6 transition-colors duration-300 ${
-                isDarkMode 
-                  ? 'border-[#3a2f2a]/70 bg-[#1f1410]/80' 
-                  : 'border-white/70 bg-white/80'
-              }`}>
-                <p className={`text-xs uppercase tracking-[0.4em] ${
-                  isDarkMode ? 'text-[#c9a89a]' : 'text-[#b37871]'
-                }`}>Live study groups</p>
-                <div className="mt-4 space-y-3">
-                  {SIGNALS.map((signal) => (
-                    <div
-                      key={signal.title}
-                      className={`grid grid-cols-[auto_1fr] items-center gap-4 rounded-2xl border px-4 py-3 transition-colors duration-300 ${
-                        isDarkMode 
-                          ? 'border-[#3a2f2a] bg-[#1f1410]/80 shadow-[0_10px_30px_rgba(194,79,99,0.15)]' 
-                          : 'border-[#f3dcd1] bg-white/80 shadow-[0_10px_30px_rgba(233,182,167,0.3)]'
-                      }`}
-                    >
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br text-sm font-semibold ${
-                        isDarkMode 
-                          ? 'from-[#3a2420] to-[#3a2028] text-[#ff8ab6]' 
-                          : 'from-[#fee1d8] to-[#ffd5eb] text-[#9c4c4c]'
-                      }`}>
-                        {signal.learners}
-                      </div>
-                      <div>
-                        <p className={`text-sm font-semibold ${
-                          isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
-                        }`}>{signal.title}</p>
-                        <p className={`text-xs ${
-                          isDarkMode ? 'text-[#b8998a]' : 'text-[#7d5c55]'
-                        }`}>{signal.vibe}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {/* Features */}
+          <section id="features" className="space-y-6 scroll-mt-24">
+            <div className="space-y-2 text-center">
+              <p className={`text-xs uppercase tracking-[0.4em] ${mutedText}`}>How it works</p>
+              <h3 className={`${headlineFont.className} text-3xl ${isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'}`}>
+                Three simple steps
+              </h3>
+              <p className={`text-sm ${isDarkMode ? 'text-[#b8998a]' : 'text-[#5b4743]'}`}>
+                Like Duolingo’s feature row: three calm cards you can scan in seconds.
+              </p>
             </div>
 
-            <div className={`mt-10 grid gap-4 rounded-[28px] border p-5 shadow-inner transition-colors duration-300 ${
-              isDarkMode 
-                ? 'border-[#3a2f2a]/60 bg-[#1f1410]/70' 
-                : 'border-white/60 bg-white/70'
-            }`}>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {HERO_STATS.map((stat) => (
-                  <div key={stat.label} className={`rounded-2xl p-4 text-center shadow-sm transition-colors duration-300 ${
-                    isDarkMode ? 'bg-[#1f1410]' : 'bg-white'
-                  }`}>
-                    <p className={`text-2xl font-semibold ${
-                      isDarkMode ? 'text-[#ff8ab6]' : 'text-[#c24f63]'
-                    }`}>{stat.value}</p>
-                    <p className={`text-xs uppercase tracking-[0.2em] ${
-                      isDarkMode ? 'text-[#b8998a]' : 'text-[#9b867f]'
-                    }`}>{stat.label}</p>
-                  </div>
-                ))}
-              </div>
+            <div ref={featuresRef} className="grid gap-4 lg:grid-cols-3">
+              {featuresLoading
+                ? [0, 1, 2].map((i) => (
+                    <div key={i} className="rounded-[24px] border border-[#f2e1d8] bg-white/70 p-8 shadow-sm animate-pulse">
+                      <div className="h-3 w-16 rounded-full bg-[#f2e1d8]" />
+                      <div className="mt-3 h-6 w-32 rounded-full bg-[#f2e1d8]" />
+                      <div className="mt-3 h-4 w-48 rounded-full bg-[#f2e1d8]" />
+                    </div>
+                  ))
+                : features.map((feature, idx) => (
+                    <motion.div
+                      key={feature.id}
+                      initial={{ opacity: 0, y: 24 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: idx * 0.1, ease: 'easeOut' }}
+                      viewport={{ once: true, amount: 0.2 }}
+                      className="rounded-[24px] border p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)]"
+                      style={{
+                        backgroundColor: feature.backgroundColor || COLORS.cardBase,
+                        borderColor: COLORS.borderLight
+                      }}
+                      onMouseEnter={() => handleFeatureHover(feature.id)}
+                      onFocus={() => handleFeatureHover(feature.id)}
+                    >
+                      <p className={`text-[0.75rem] uppercase tracking-[0.35em] ${mutedText}`}>Feature</p>
+                      <div className="mt-3 flex items-center gap-2 text-2xl">
+                        <span aria-hidden>{feature.icon || '✨'}</span>
+                        <h4 className={`${headlineFont.className} text-xl font-semibold`}>{feature.title}</h4>
+                      </div>
+                      <p className={`mt-3 text-sm leading-relaxed ${mutedText}`}>{feature.description}</p>
+                      {feature.metadata?.length ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {feature.metadata.map((tag: string) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-white/70 px-3 py-1 text-[0.78rem] font-semibold text-[#5b4743] shadow-sm"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </motion.div>
+                  ))}
             </div>
           </section>
 
-          {/* Features */}
-          <section className="grid gap-6 lg:grid-cols-3">
-            {FEATURE_STACK.map((feature) => (
-              <div
-                key={feature.title}
-                className={`rounded-[28px] border p-6 transition-colors duration-300 ${
-                  isDarkMode 
-                    ? `border-[#3a2f2a] bg-gradient-to-br ${feature.accentDark} shadow-[0_30px_60px_rgba(194,79,99,0.15)]` 
-                    : `border-[#f2e1d8] bg-gradient-to-br ${feature.accentLight} shadow-[0_30px_60px_rgba(246,203,193,0.4)]`
-                }`}
-              >
-                <p className={`text-xs uppercase tracking-[0.4em] ${
-                  isDarkMode ? 'text-[#c9a89a]' : 'text-[#b37871]'
-                }`}>Feature</p>
-                <h3 className={`${headlineFont.className} mt-2 text-xl ${
-                  isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
-                }`}>{feature.title}</h3>
-                <p className={`mt-3 text-sm ${
-                  isDarkMode ? 'text-[#b8998a]' : 'text-[#5b4743]'
-                }`}>{feature.body}</p>
-              </div>
-            ))}
+          {/* Social proof stats */}
+          <section
+            id="stats"
+            ref={statsRef}
+            className={`space-y-8 rounded-[32px] border px-6 py-10 md:px-10 md:py-12 shadow-sm scroll-mt-24 ${
+              isDarkMode ? 'border-[#3a2f2a] bg-[#1a120e]' : 'border-[#f2e1d8] bg-[#fff8f5]'
+            }`}
+          >
+            <div className="space-y-2 text-center">
+              <p className={`text-xs uppercase tracking-[0.4em] ${mutedText}`}>Proof it works</p>
+              <h3 className={`${headlineFont.className} text-3xl ${isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'}`}>
+                Numbers that move in real time
+              </h3>
+              <p className={`text-sm ${mutedText}`}>Fresh counts from our live data—no static screenshots.</p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[{
+                label: 'LEARNING PATHS CREATED',
+                value: statsData.pathsCreated
+              }, {
+                label: 'RESOURCES CURATED',
+                value: statsData.resourcesCurated
+              }, {
+                label: 'ACTIVE STUDY GROUPS',
+                value: statsData.activeGroups
+              }].map((stat) => (
+                <StatCard
+                  key={stat.label}
+                  label={stat.label}
+                  value={stat.value}
+                  isLoading={statsLoading}
+                  isDarkMode={isDarkMode}
+                />
+              ))}
+            </div>
+            {statsData.lastUpdated && (
+              <p className={`text-center text-xs ${mutedText}`}>Last updated {new Date(statsData.lastUpdated).toLocaleString()}</p>
+            )}
           </section>
 
           {/* Gamified Loop */}
           <section
-            className={`rounded-[36px] border p-6 transition-colors duration-300 ${
-              isDarkMode
-                ? 'border-[#3a2f2a] bg-[#1f1410] shadow-[0_35px_70px_rgba(0,0,0,0.25)]'
-                : 'border-[#f2e1d8] bg-white shadow-[0_35px_70px_rgba(37,23,19,0.08)]'
-            }`}
+            id="dashboard"
+            className="space-y-4 rounded-[20px] border border-[#ebe6e1] bg-[#fdfaf7] p-6 shadow-[0_35px_70px_rgba(37,23,19,0.08)] transition-colors duration-300 scroll-mt-24"
           >
-            <GamifiedDashboard isDarkMode={isDarkMode} />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-normal text-[#5a5a5a]">
+                Progress in CREO is measured by understanding and consistency — not XP.
+              </p>
+              <button
+                type="button"
+                onClick={() => setProgressExpanded((s) => !s)}
+                className="inline-flex items-center gap-2 rounded-full border border-[#d6d1cc] px-4 py-2 text-xs font-semibold text-[#1f1f1f] transition hover:-translate-y-0.5 hover:bg-[#f3f1ee]"
+              >
+                {progressExpanded ? 'Hide' : 'Learn more'}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+            {progressExpanded && (
+              <div
+                className={`space-y-2 rounded-2xl p-4 text-sm ${
+                  isDarkMode ? 'bg-[#1f1f1f] text-[#f5f5f5]' : 'bg-white text-[#1f1f1f]'
+                }`}
+              >
+                <p className="font-semibold">We keep it simple:</p>
+                <ul className="space-y-1 text-sm">
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-[#c24f63]" /> Steps completed
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-[#c24f63]" /> Confidence per topic
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-[#c24f63]" /> Focused time (tiny sessions count)
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {showComparison ? (
+              <div className="rounded-3xl border border-[#ebe6e1] bg-[#fdfaf7] p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[12px] uppercase tracking-[0.12em] text-[#7a7a7a]">Clutter vs Direction</p>
+                    <h3 className={`${headlineFont.className} text-xl font-semibold text-[#1f1f1f]`}>
+                      Stop piecing learning together.
+                    </h3>
+                    <p className="text-sm text-[#5a5a5a]">
+                      CREO replaces scattered tools and unclear goals with a single guided path.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowComparison(false)}
+                    className="rounded-full border border-[#d4cec8] px-3 py-1 text-xs font-semibold text-[#2f2f2f] transition hover:-translate-y-0.5 dark:border-[#e6e1dc] dark:text-[#f5f5f5]"
+                  >
+                    Collapse
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-[#9a3a3a]">Cluttered approach</p>
+                    {[
+                      'Jumping between videos, notes, and random practice sites',
+                      'Not knowing what to do next after each session',
+                      'Progress feels like time spent, not understanding gained',
+                      'Revision happens too late and feels overwhelming',
+                      'Motivation depends on willpower and long sessions',
+                      'Too many tabs, too little clarity'
+                    ].map((text) => (
+                      <div
+                        key={text}
+                        className="flex items-start gap-2 rounded-2xl border border-[#edd6d6] bg-[#f7eeee] p-3 text-sm text-[#3a1f1f]"
+                      >
+                        <XCircle className="mt-0.5 h-4 w-4 text-[#b94a4a]" />
+                        <p>{text}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2 lg:border-l lg:border-[#ebe6e1] lg:pl-4">
+                    <p className="text-sm font-semibold text-[#1f6b4e]">CREO: Direction-first</p>
+                    {[
+                      'One path with clear next steps',
+                      'Coach detects blockers and switches to hint-first mode',
+                      'Practice is generated from weak spots automatically',
+                      'Progress is based on confidence + consistency (not points)',
+                      'Short sessions still count — momentum without guilt',
+                      'Resources are curated and tied to the exact step'
+                    ].map((text) => (
+                      <div
+                        key={text}
+                        className="flex items-start gap-2 rounded-2xl border border-[#dbeae2] bg-[#f1f7f4] p-3 text-sm text-[#1f3a2e]"
+                      >
+                        <Check className="mt-0.5 h-4 w-4 text-[#3f8f6a]" />
+                        <p>{text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowComparison(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-[#f2e1d8] bg-white px-4 py-2 text-xs font-semibold text-[#5b4743] shadow-sm transition hover:-translate-y-0.5 dark:border-[#3a2f2a] dark:bg-[#1f1410] dark:text-[#f5e6dc]"
+              >
+                Clutter → Direction ✓
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            )}
           </section>
 
           {/* Flow */}
-          <section className={`rounded-[36px] border p-8 transition-colors duration-300 ${
+          <section id="flow" className={`rounded-[36px] border p-8 transition-colors duration-300 scroll-mt-24 ${
             isDarkMode 
               ? 'border-[#3a2f2a] bg-[#1f1410] shadow-[0_35px_70px_rgba(0,0,0,0.3)]' 
               : 'border-[#f2e1d8] bg-white shadow-[0_35px_70px_rgba(37,23,19,0.08)]'
@@ -716,7 +1058,7 @@ export default function Home() {
           </section>
 
           {/* Pods */}
-          <section className={`rounded-[36px] border p-8 transition-colors duration-300 ${
+          <section id="pods" className={`rounded-[36px] border p-8 transition-colors duration-300 scroll-mt-24 ${
             isDarkMode 
               ? 'border-[#3a2f2a] bg-[#1a120e] shadow-[0_30px_60px_rgba(194,79,99,0.15)]' 
               : 'border-[#f2e1d8] bg-[#fff8f5] shadow-[0_30px_60px_rgba(230,191,182,0.5)]'
@@ -737,57 +1079,76 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="mt-8 grid gap-4 lg:grid-cols-3">
-              {SIGNALS.map((signal) => (
-                <div key={signal.title} className={`rounded-3xl border px-5 py-6 shadow-sm transition-colors duration-300 ${
-                  isDarkMode 
-                    ? 'border-[#3a2f2a] bg-[#1f1410]' 
-                    : 'border-[#f2d9cf] bg-white'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className={`text-xs uppercase tracking-[0.3em] ${
-                        isDarkMode ? 'text-[#c9a89a]' : 'text-[#b37871]'
-                      }`}>Study group</p>
-                      <p className={`text-lg font-semibold ${
-                        isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
-                      }`}>{signal.title}</p>
-                    </div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      isDarkMode 
-                        ? 'bg-[#2a1820] text-[#ff8ab6]' 
-                        : 'bg-[#ffe9ea] text-[#c24f63]'
+            <div className="mt-8">
+              <div className={`rounded-3xl border px-5 py-6 shadow-sm transition-colors duration-300 ${
+                isDarkMode 
+                  ? 'border-[#3a2f2a] bg-[#1f1410]' 
+                  : 'border-[#f2d9cf] bg-white'
+              }`}>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className={`text-xs uppercase tracking-[0.3em] ${
+                      isDarkMode ? 'text-[#c9a89a]' : 'text-[#b37871]'
+                    }`}>Study pod</p>
+                    <p className={`text-lg font-semibold ${
+                      isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
+                    }`}>One calm room, a gentle host</p>
+                    <p className={`mt-2 text-sm ${
+                      isDarkMode ? 'text-[#b8998a]' : 'text-[#5b4743]'
                     }`}>
-                      {signal.learners} live
-                    </span>
+                      Join a handful of peers on the same module. You get a prompt, 15 minutes of focus, and a quick share-out.
+                    </p>
                   </div>
-                  <p className={`mt-3 text-sm ${
-                    isDarkMode ? 'text-[#b8998a]' : 'text-[#5b4743]'
-                  }`}>{signal.vibe}</p>
-                  <div className={`mt-4 flex items-center gap-2 text-xs ${
-                    isDarkMode ? 'text-[#b8998a]' : 'text-[#a37d75]'
-                  }`}>
-                    <span className={`inline-flex h-8 w-8 items-center justify-center rounded-2xl font-semibold ${
-                      isDarkMode 
-                        ? 'bg-[#2a1f1a] text-[#ff8ab6]' 
-                        : 'bg-[#fff4ef] text-[#c24f63]'
-                    }`}>
-                      {signal.title
-                        .split(' ')
-                        .map((word) => word.charAt(0))
-                        .slice(0, 2)
-                        .join('')
-                        .toUpperCase()}
-                    </span>
-                    <span>Join learners on this lesson · <strong>Under 30s</strong> wait</span>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className={`rounded-full px-3 py-1 ${
+                      isDarkMode ? 'bg-[#2a1f1a] text-[#ff8ab6]' : 'bg-[#ffe9ea] text-[#c24f63]'
+                    }`}>Under 30s wait</span>
+                    <span className={`rounded-full px-3 py-1 ${
+                      isDarkMode ? 'bg-[#2a1f1a] text-[#f5e6dc]' : 'bg-[#fff4ef] text-[#c24f63]'
+                    }`}>Camera optional</span>
+                    <span className={`rounded-full px-3 py-1 ${
+                      isDarkMode ? 'bg-[#2a1f1a] text-[#f5e6dc]' : 'bg-[#fff4ef] text-[#c24f63]'
+                    }`}>Pace + timezone matched</span>
                   </div>
                 </div>
-              ))}
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className={`rounded-2xl border px-4 py-3 ${
+                    isDarkMode ? 'border-[#3a2f2a] bg-[#1f1410]' : 'border-[#f2d9cf] bg-[#fff4ef]'
+                  }`}>
+                    <p className={`text-xs uppercase tracking-[0.2em] ${
+                      isDarkMode ? 'text-[#c9a89a]' : 'text-[#b37871]'
+                    }`}>Warm-up</p>
+                    <p className={`text-sm ${
+                      isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
+                    }`}>One simple prompt to get talking.</p>
+                  </div>
+                  <div className={`rounded-2xl border px-4 py-3 ${
+                    isDarkMode ? 'border-[#3a2f2a] bg-[#1f1410]' : 'border-[#f2d9cf] bg-[#fff4ef]'
+                  }`}>
+                    <p className={`text-xs uppercase tracking-[0.2em] ${
+                      isDarkMode ? 'text-[#c9a89a]' : 'text-[#b37871]'
+                    }`}>Focus</p>
+                    <p className={`text-sm ${
+                      isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
+                    }`}>15-minute quiet block with a timer.</p>
+                  </div>
+                  <div className={`rounded-2xl border px-4 py-3 ${
+                    isDarkMode ? 'border-[#3a2f2a] bg-[#1f1410]' : 'border-[#f2d9cf] bg-[#fff4ef]'
+                  }`}>
+                    <p className={`text-xs uppercase tracking-[0.2em] ${
+                      isDarkMode ? 'text-[#c9a89a]' : 'text-[#b37871]'
+                    }`}>Share</p>
+                    <p className={`text-sm ${
+                      isDarkMode ? 'text-[#f5e6dc]' : 'text-[#1f120f]'
+                    }`}>Show one win or question before you leave.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
           {/* Inline Tutor */}
-          <section className={`grid gap-6 lg:grid-cols-2 items-start rounded-[36px] border p-8 transition-colors duration-300 ${
+          <section id="coach" className={`grid gap-6 lg:grid-cols-2 items-start rounded-[36px] border p-8 transition-colors duration-300 scroll-mt-24 ${
             isDarkMode
               ? 'border-[#3a2f2a] bg-[#1f1410]'
               : 'border-[#f2e1d8] bg-white'
@@ -816,7 +1177,7 @@ export default function Home() {
           </section>
 
           {/* CTA */}
-          <section className={`rounded-[36px] border p-8 text-center transition-colors duration-300 ${
+          <section id="cta" className={`rounded-[36px] border p-8 text-center transition-colors duration-300 scroll-mt-24 ${
             isDarkMode 
               ? 'border-[#3a2f2a] bg-[#1f1410] shadow-[0_30px_70px_rgba(0,0,0,0.3)]' 
               : 'border-[#f2e1d8] bg-white shadow-[0_30px_70px_rgba(37,23,19,0.08)]'
@@ -834,7 +1195,7 @@ export default function Home() {
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <Link
-                href="/course"
+                href="/learn"
                 className={`rounded-full px-6 py-3 text-sm font-semibold transition hover:-translate-y-0.5 ${
                   isDarkMode ? 'bg-[#f5e6dc] text-[#1f120f]' : 'bg-[#1f120f] text-white'
                 }`}
@@ -853,8 +1214,10 @@ export default function Home() {
               </Link>
             </div>
           </section>
-        </main>
+        </div>
       </div>
+    </main>
+  </div>
     </>
   );
 }

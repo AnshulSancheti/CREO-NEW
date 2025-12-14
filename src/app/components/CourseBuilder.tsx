@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { safeJson } from '@/app/utils/safeJson';
 import {
   Course,
   CourseGenerationRequest,
@@ -119,6 +120,50 @@ const toStudySlug = (value: string) =>
 
 const buildStudyLink = (value: string) => `https://discord.gg/${toStudySlug(value).slice(0, 32)}`;
 
+// Transform new API course data to match existing Course interface
+const transformCourseData = (apiCourse: any, requestId: string): Course => {
+  return {
+    id: apiCourse.id,
+    title: `${apiCourse.topic} - ${apiCourse.level}`,
+    description: `A comprehensive course on ${apiCourse.topic} designed for ${apiCourse.level} learners.`,
+    difficulty: apiCourse.level,
+    duration: `${Math.ceil((apiCourse.timePerDay * 7 * 4) / 60)} hours`,
+    prerequisites: [],
+    learningOutcomes: [],
+    requestId: requestId,
+    modules: apiCourse.modules.map((mod: any) => ({
+      id: mod.id,
+      moduleNumber: mod.order,
+      title: mod.title,
+      description: mod.description,
+      learningObjectives: typeof mod.outcomes === 'string' ? JSON.parse(mod.outcomes) : mod.outcomes || [],
+      estimatedDuration: `${mod.lessons?.length || 4} lessons`,
+      topics: [{
+        id: mod.id + '_topic',
+        title: mod.title,
+        description: mod.description,
+        contentPoints: typeof mod.outcomes === 'string' ? JSON.parse(mod.outcomes) : mod.outcomes || [],
+        videos: (mod.resources || []).map((res: any) => ({
+          id: res.id,
+          title: res.title,
+          url: res.url,
+          thumbnailUrl: res.thumbnailUrl || '',
+          duration: res.durationSeconds ? `${Math.floor(res.durationSeconds / 60)}:${(res.durationSeconds % 60).toString().padStart(2, '0')}` : '10:00',
+          channel: res.channel || 'Unknown',
+          views: '0',
+          uploadDate: 'Recent'
+        }))
+      }],
+      assessment: {
+        quizTitle: `${mod.title} Quiz`,
+        quizQuestions: (mod.quizzes?.[0]?.questions || []).map((q: any) => q.question),
+        problemSetTitle: `${mod.title} Practice`,
+        problemPrompts: []
+      }
+    }))
+  };
+};
+
 interface CourseBuilderProps {
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
@@ -179,6 +224,8 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
   const [statusState, setStatusState] = useState<'idle' | 'loading' | 'done'>('idle');
   const completionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [durationInput, setDurationInput] = useState(formData.duration);
+  const pollingRef = useRef<boolean>(false);
+  const currentJobId = useRef<string | null>(null);
   
   useEffect(() => {
     setDurationInput(formData.duration);
@@ -346,8 +393,9 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
       return;
     }
 
-    const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    console.log(`[${requestId}] Course generation: ${formData.topic} (${formData.difficulty})`);
+    // Generate a proper UUID for idempotency
+    const idempotencyKey = crypto.randomUUID();
+    console.log(`[${idempotencyKey}] Course generation: ${formData.topic} (${formData.difficulty})`);
     
     setLoading(true);
     setError(null);
@@ -364,9 +412,16 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
     let wasSuccessful = false;
 
     try {
-      const payload = { ...formData, requestId };
+      // Use the new robust course generation API
+      const payload = {
+        topic: formData.topic,
+        level: formData.difficulty || 'beginner',
+        timePerDay: 30, // default 30 minutes per day
+        idempotencyKey: idempotencyKey
+      };
       
-      const response = await fetch('/api/course/generate', {
+      // Step 1: Start course generation
+      const startResponse = await fetch('/api/path/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -374,49 +429,94 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
         body: JSON.stringify(payload)
       });
 
-      const responseText = await response.text();
-      let data: CourseGenerationResponse;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error(`[${requestId}] Failed to parse response`);
-        throw new Error('Invalid response format from server');
+      // Use safe JSON parsing to prevent "Unexpected end of JSON input"
+      const startResult = await safeJson(startResponse, '/api/path/generate');
+      
+      if (!startResult.ok || !startResult.data?.success) {
+        const errorMsg = startResult.errorMessage || startResult.data?.error?.message || 'Failed to start course generation';
+        console.error('[Course Generation] Start failed:', {
+          status: startResult.status,
+          traceId: startResult.traceId,
+          rawPreview: startResult.raw.substring(0, 300)
+        });
+        throw new Error(errorMsg);
       }
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to generate course');
-      }
-
-      console.log(`[${requestId}] Success: "${data.course?.title}" (${data.course?.modules.length} modules, ${data.generationTime}ms)`);
+      const jobId = startResult.data.jobId;
+      const startTraceId = startResult.traceId;
+      currentJobId.current = jobId;
+      pollingRef.current = true;
+      console.log(`[${idempotencyKey}] Job started: ${jobId}`);
       
-      // Warn if generation took too long (indicates API retries/fallback)
-      if (data.generationTime && data.generationTime > 40000) {
-        setError('⚠️ AI generation experienced delays (likely API quota limits). Your course uses a template structure customized for "' + formData.topic + '". For fully AI-generated content, check your Gemini API quota at https://ai.dev/usage');
-      }
+      // Step 2: Poll for completion (resilient to hot reload)
+      let attempts = 0;
+      const maxAttempts = 60; // 2 minutes max
       
-      setCourse(data.course!);
-      if (typeof window !== 'undefined' && data.course) {
-        try {
-          localStorage.setItem('creoActiveCourse', JSON.stringify(data.course));
-          const statusRaw = localStorage.getItem('creoCourseStatus');
-          const statusPayload: Record<string, Record<string, 'completed' | 'pending' | 'current'>> = statusRaw
-            ? JSON.parse(statusRaw)
-            : {};
-          if (!statusPayload[data.course.id]) {
-            statusPayload[data.course.id] = {};
-          }
-          localStorage.setItem('creoCourseStatus', JSON.stringify(statusPayload));
-          window.dispatchEvent(new Event('creo-course-updated'));
-        } catch (storageError) {
-          console.error('Failed to persist course locally:', storageError);
+      while (attempts < maxAttempts && pollingRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
+        
+        const statusResponse = await fetch(`/api/jobs/${jobId}`);
+        const statusResult = await safeJson(statusResponse, `/api/jobs/${jobId}`);
+        
+        if (!statusResult.ok || !statusResult.data?.success) {
+          console.error('[Course Generation] Status check failed:', {
+            status: statusResult.status,
+            traceId: statusResult.traceId,
+            jobId
+          });
+          throw new Error(statusResult.errorMessage || 'Failed to check job status');
         }
+        
+        const { status, progressPercent, currentStage } = statusResult.data.data;
+        console.log(`[${idempotencyKey}] Progress: ${progressPercent}% - ${currentStage} [traceId: ${statusResult.traceId || startTraceId}]`);
+        
+        if (status === 'succeeded') {
+          // Step 3: Fetch the generated course
+          const courseId = statusResult.data.data.courseId;
+          const courseResponse = await fetch(`/api/courses/${courseId}`);
+          const courseResult = await safeJson(courseResponse, `/api/courses/${courseId}`);
+          
+          if (!courseResult.ok || !courseResult.data?.success) {
+            console.error('[Course Generation] Course fetch failed:', {
+              status: courseResult.status,
+              traceId: courseResult.traceId,
+              courseId
+            });
+            throw new Error(courseResult.errorMessage || 'Failed to fetch generated course');
+          }
+          
+          console.log(`[${idempotencyKey}] Success: Course generated with ${courseResult.data.data.course.modules.length} modules [traceId: ${courseResult.traceId}]`);
+          
+          // Transform to match existing Course interface
+          const transformedCourse = transformCourseData(courseResult.data.data.course, idempotencyKey);
+          setCourse(transformedCourse);
+          pollingRef.current = false;
+          currentJobId.current = null;
+          wasSuccessful = true;
+          break;
+        } else if (status === 'failed') {
+          pollingRef.current = false;
+          currentJobId.current = null;
+          const errorMsg = statusResult.data.data.error?.message || 'Course generation failed';
+          const errorTraceId = statusResult.traceId;
+          console.error('[Course Generation] Job failed:', {
+            traceId: errorTraceId,
+            errorCode: statusResult.data.data.error?.code,
+            errorMessage: errorMsg
+          });
+          throw new Error(`${errorMsg} [traceId: ${errorTraceId}]`);
+        }
+        
+        attempts++;
       }
-      setFeaturedVideos(data.featuredVideos ?? null);
-      setGenerationStats({
-        time: data.generationTime,
-        videos: data.videosFetched
-      });
       
+      if (attempts >= maxAttempts) {
+        pollingRef.current = false;
+        currentJobId.current = null;
+        throw new Error('Course generation timed out. Please try again.');
+      }
+      
+      // Course was already set in the polling loop above
       wasSuccessful = true;
       setStatusState('done');
       
@@ -424,14 +524,11 @@ export default function CourseBuilder({ isDarkMode, onToggleDarkMode }: CourseBu
         setStatusState('idle');
         completionTimeout.current = null;
       }, 5000);
-
-      if (data.course && data.course.modules.length > 0) {
-        setExpandedModules(new Set([data.course.modules[0].id]));
-        setSelectedModuleId(data.course.modules[0].id);
-      }
     } catch (err) {
-      console.error(`[${requestId}] Error:`, err instanceof Error ? err.message : err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      pollingRef.current = false;
+      currentJobId.current = null;
+      console.error('Course generation error:', err instanceof Error ? err.message : err);
+      setError(err instanceof Error ? err.message : 'An error occurred during course generation');
       setStatusState('idle');
     } finally {
       setLoading(false);

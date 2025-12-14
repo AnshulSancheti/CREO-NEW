@@ -112,6 +112,7 @@ export async function GET(request: NextRequest, context: Params) {
     return NextResponse.json(
       {
         success: true,
+        traceId,
         data: {
           course: formattedCourse
         }
@@ -119,10 +120,17 @@ export async function GET(request: NextRequest, context: Params) {
       { status: 200 }
     );
   } catch (error: any) {
-    console.error('GET /api/courses/[courseId] error', error);
+    // ALWAYS return JSON
+    console.error('[GET /api/courses/[courseId]] Error:', {
+      traceId,
+      error: error.message,
+      stack: error.stack
+    });
+    
     return NextResponse.json(
       {
         success: false,
+        traceId,
         error: {
           code: ErrorCode.DB_WRITE_FAILURE,
           message: 'Failed to fetch course'
